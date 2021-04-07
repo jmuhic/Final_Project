@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import collections
 import webbrowser
 import secret_drugs
 
@@ -9,27 +10,39 @@ def find_by_drug(drug_name):
     reactionList = {}
     reactionList = check_cache(drug_name)
 
-    fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
-    api_key = secret_drugs.FDA_API_KEY
-    fda_search = "&search=patient.drug.openfda.brand_name:" + drug_name
-    limit = '&limit=1000'
+    if reactionList is None:
+        fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
+        api_key = secret_drugs.FDA_API_KEY
+        fda_search = "&search=patient.drug.openfda.brand_name:" + drug_name
+        limit = '&limit=1000'
 
-    output = requests.get(fda_url_base + api_key + fda_search + limit)
-    reaction_results = json.loads(output.text)
-    test = reaction_results['results']
+        output = requests.get(fda_url_base + api_key + fda_search + limit)
+        reaction_results = json.loads(output.text)
+        test = reaction_results['results']
 
-    test_list = []
-    for i in range(len(test)):
-        for x in range(len(test[i]['patient']['reaction'])):
-            reaction = test[i]['patient']['reaction'][x]['reactionmeddrapt']
-            if reaction not in test_list:
-                test_list.append(reaction)
+        # Building a dictionary to list reporting reactions and number of occurrences
+        test_list = {}
+        for i in range(len(test)):
+            for x in range(len(test[i]['patient']['reaction'])):
+                reaction = test[i]['patient']['reaction'][x]['reactionmeddrapt']
+                if reaction not in test_list:
+                    test_list[reaction] = 1
+                else:
+                    test_list[reaction] += 1
 
-    print(test_list)
-    print(len(test_list))
+        # Sorting the results by most frequently report reactions to least frequent
+        reactionList = dict(sorted(test_list.items(), key=lambda kv: kv[1], reverse=True))
+        add_to_cache(drug_name, reactionList)
 
-    with open('output_test.txt', 'w') as testfile:
-        json.dump(test, testfile, indent=2)
+    print(reactionList)
+    print(len(reactionList))
+
+    #### SHOULD I LIST ONLY THE TOP TEN TO THE USER? ####
+
+    #with open('output_test.txt', 'w') as testfile:
+    #    json.dump(test, testfile, indent=2)
+
+    return reactionList
 
     '''
 
