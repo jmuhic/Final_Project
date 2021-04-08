@@ -1,9 +1,9 @@
 import requests
 import json
 import os
-import collections
 import webbrowser
 import secret_drugs
+
 
 def find_by_drug(drug_name):
 
@@ -13,29 +13,33 @@ def find_by_drug(drug_name):
     if reactionList is None:
         fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
         api_key = secret_drugs.FDA_API_KEY
-        fda_search = "&search=patient.drug.openfda.brand_name:" + drug_name
+        #fda_search_brand = "&search=patient.drug.openfda.brand_name:" + drug_name
         limit = '&limit=1000'
 
-        output = requests.get(fda_url_base + api_key + fda_search + limit)
+        # More generalized search appears to be most effective for brand/generic/substance_name
+        #output_brand = requests.get(fda_url_base + api_key + fda_search_brand + limit)
+        output = requests.get(fda_url_base + api_key + '&search=' + drug_name + limit)
         reaction_results = json.loads(output.text)
-        test = reaction_results['results']
+        try:
+            reactions = reaction_results['results']
 
         # Building a dictionary to list reporting reactions and number of occurrences
-        test_list = {}
-        for i in range(len(test)):
-            for x in range(len(test[i]['patient']['reaction'])):
-                reaction = test[i]['patient']['reaction'][x]['reactionmeddrapt']
-                if reaction not in test_list:
-                    test_list[reaction] = 1
-                else:
-                    test_list[reaction] += 1
+            reactions_dict = {}
+            for i in range(len(reactions)):
+                for x in range(len(reactions[i]['patient']['reaction'])):
+                    drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
+                    if drug_reaction not in reactions_dict:
+                        reactions_dict[drug_reaction] = 1
+                    else:
+                        reactions_dict[drug_reaction] += 1
 
-        # Sorting the results by most frequently report reactions to least frequent
-        reactionList = dict(sorted(test_list.items(), key=lambda kv: kv[1], reverse=True))
-        add_to_cache(drug_name, reactionList)
+            # Sorting the results by most frequently report reactions to least frequent
+            reactionList = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
+            add_to_cache(drug_name, reactionList)
 
-    print(reactionList)
-    print(len(reactionList))
+        except:
+            print('Drug not found in FDA database. Please try another search.')
+            return None
 
     #### SHOULD I LIST ONLY THE TOP TEN TO THE USER? ####
 
@@ -55,9 +59,6 @@ def find_by_drug(drug_name):
 
     If not found in check_cache, add_to_cache(drug_name, reactionList)
     '''
-
-    return reactionList
-    pass
 
 
 def find_by_reaction(reaction):
@@ -136,4 +137,15 @@ if os.path.isfile(path):
 
 if __name__ == "__main__":
     # interactive search should go here
-    find_by_drug("celebrex")
+    while True:
+        drug_search = input("Please enter the name of a drug to search: ")
+        test = find_by_drug(drug_search)
+        if test is None:
+            drug_search = input("Please enter the name of a drug to search: ")
+            test = find_by_drug(drug_search)
+        # Maybe: if 'test' = None, allow the user to search again?
+
+        print(test)
+
+        more_info = input("Would you like to find out more info about this drug (y/n)? ")
+        exit()
