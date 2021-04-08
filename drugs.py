@@ -6,6 +6,24 @@ import secret_drugs
 
 
 def find_by_drug(drug_name):
+    '''
+    Returns a list of rections reported to the FDA
+    for the drug entered by the user.  Will return
+    data from cache, if found.  Otherwise, will use
+    FDA API to retrieve the information.
+
+    Parameters:
+    -----------
+    drug_name: string
+        name of drug entered by user
+
+    Returns:
+    --------
+    reactionDict: dictionary
+        dictionary containing the name of the reaction (key)
+        and the number of times the reaction was reported (value)
+        for the user-specified drug
+    '''
 
     drug_dict = {}
     drug_dict = check_cache(drug_name)
@@ -22,7 +40,7 @@ def find_by_drug(drug_name):
                     reactions_dict[drug_reaction] += 1
 
             # Sorting the results by most frequently report reactions to least frequent
-            reactionList = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
+            reactionDict = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
     elif drug_dict is None:
         fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
         api_key = secret_drugs.FDA_API_KEY
@@ -48,8 +66,8 @@ def find_by_drug(drug_name):
                         reactions_dict[drug_reaction] += 1
 
             # Sorting the results by most frequently report reactions to least frequent
-            reactionList = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
-            #add_to_cache(drug_name, reactionList)
+            reactionDict = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
+            #add_to_cache(drug_name, reactionDict)
 
         except:
             print('Drug not found in FDA database. Please try another search.')
@@ -57,28 +75,33 @@ def find_by_drug(drug_name):
 
     #### SHOULD I LIST ONLY THE TOP TEN TO THE USER? ####
 
-    #with open('output_test.txt', 'w') as testfile:
-    #    json.dump(test, testfile, indent=2)
+    return reactionDict
 
-    return reactionList
 
+
+def find_by_reaction(user_reaction):
     '''
+    Returns a list of rections reported to the FDA
+    for the drug entered by the user.  Will return
+    data from cache, if found.  Otherwise, will use
+    FDA API to retrieve the information.
 
-    search by either brand name first, if not found, then search generic.
-    if nothing found, then print apologies and ask to try another drug search
-    SEARCH FORMAT: https://api.fda.gov/drug/event.json?api_key=yourAPIKeyHere&search=...
-    #fda_url_search =
-    #https://api.fda.gov/drug/event.json?search=patient.drug.openfda.brand_name:%22BONIVA%22
-    #search=patient.drug.openfda.generic_name:"FOO+BAR"
+    Parameters:
+    -----------
+    user_reaction: string
+        name of reaction entered by user
 
-    If not found in check_cache, add_to_cache(drug_name, reactionList)
+    Returns:
+    --------
+    drugDict: dictionary
+        dictionary containing the name of the drug name (key)
+        and the number of times the drug was reported for the
+        user-specified reaction (value)
     '''
-
-
-def find_by_reaction(reaction):
-
+    # Can use the same base as 'find_my_drug' probably, but search
+    # for different values in 'output'
     drug_list = {}
-    drug_list = check_cache(reaction)
+    drug_list = check_cache(user_reaction)
 
     fda_url_base = "https://api.fda.gov/drug/event.json?"
     api_key = FDA_API_KEY
@@ -154,12 +177,15 @@ if __name__ == "__main__":
     while True:
         drug_search = input("Please enter the name of a drug to search: ")
         test = find_by_drug(drug_search)
-        if test is None:
+        # if 'test' is None, allow the user to search again.
+        while test is None:
             drug_search = input("Please enter the name of a drug to search: ")
             test = find_by_drug(drug_search)
-        # Maybe: if 'test' = None, allow the user to search again?
 
+
+        # Have a way to present as chart here (create functions?)
         print(test)
 
+        # For Reddit section
         more_info = input("Would you like to find out more info about this drug (y/n)? ")
         exit()
