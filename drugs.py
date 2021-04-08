@@ -7,10 +7,23 @@ import secret_drugs
 
 def find_by_drug(drug_name):
 
-    reactionList = {}
-    reactionList = check_cache(drug_name)
+    drug_dict = {}
+    drug_dict = check_cache(drug_name)
 
-    if reactionList is None:
+    if drug_dict:
+        reactions_dict = {}
+        reactions = drug_dict['results']
+        for i in range(len(reactions)):
+            for x in range(len(reactions[i]['patient']['reaction'])):
+                drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
+                if drug_reaction not in reactions_dict:
+                    reactions_dict[drug_reaction] = 1
+                else:
+                    reactions_dict[drug_reaction] += 1
+
+            # Sorting the results by most frequently report reactions to least frequent
+            reactionList = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
+    elif drug_dict is None:
         fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
         api_key = secret_drugs.FDA_API_KEY
         #fda_search_brand = "&search=patient.drug.openfda.brand_name:" + drug_name
@@ -22,6 +35,7 @@ def find_by_drug(drug_name):
         reaction_results = json.loads(output.text)
         try:
             reactions = reaction_results['results']
+            add_to_cache(drug_name, reaction_results)
 
         # Building a dictionary to list reporting reactions and number of occurrences
             reactions_dict = {}
@@ -35,7 +49,7 @@ def find_by_drug(drug_name):
 
             # Sorting the results by most frequently report reactions to least frequent
             reactionList = dict(sorted(reactions_dict.items(), key=lambda kv: kv[1], reverse=True))
-            add_to_cache(drug_name, reactionList)
+            #add_to_cache(drug_name, reactionList)
 
         except:
             print('Drug not found in FDA database. Please try another search.')
@@ -123,7 +137,7 @@ def add_to_cache(key, value):
 
     # writing new key,value pair to cache file
     with open("drugs_cache.json", "w") as cache:
-        json.dump(json_cache, cache)
+        json.dump(json_cache, cache, indent=2)
 
 # Initializing setup of cache
 json_cache = {}
