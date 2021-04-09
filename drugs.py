@@ -3,6 +3,7 @@ import json
 import os
 import webbrowser
 import secret_drugs
+import plotly
 
 
 def find_by_drug(drug_name):
@@ -100,20 +101,50 @@ def find_by_reaction(user_reaction):
     '''
     # Can use the same base as 'find_my_drug' probably, but search
     # for different values in 'output'
-    drug_list = {}
-    drug_list = check_cache(user_reaction)
+    reaction_dict = {}
+    reaction_dict = check_cache(user_reaction)
 
-    fda_url_base = "https://api.fda.gov/drug/event.json?"
-    api_key = FDA_API_KEY
+    if reaction_dict:
+        drugs_dict = {}
+        drugs = reaction_dict['results']
+        for i in range(len(drugs)):
+            for x in range(len(drugs[i]['patient']['drug'])):
+                found_drug = drugs[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
+                if found_drug not in drugs_dict:
+                    drugs_dict[found_drug] = 1
+                else:
+                    drugs_dict[found_drug] += 1
+                ### PICK UP FROM HERE ### NOT FINISHSED ###
 
-    '''
-    sample searches:
-    SEARCH FORMAT: https://api.fda.gov/drug/event.json?api_key=yourAPIKeyHere&search=...
-    https://api.fda.gov/drug/event.json?search=patient.reaction.reactionmeddrapt:%22vomiting%22
-    '''
+        drugsDict = dict(sorted(drugs_dict.items(), key=lambda kv: kv[1], reverse=True))
+    elif reaction_dict is None:
+        fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
+        api_key = secret_drugs.FDA_API_KEY
+        fda_search_drug = "&search=patient.reaction.reactionmeddrapt:" + user_reaction
+        limit = '&limit=1000'
 
-    return drug_list
-    pass
+        drugs_output = requests.get(fda_url_base + api_key + fda_search_drug + limit)
+        drug_results = json.loads(drugs_output.text)
+        try:
+            drugs = drug_results['results']
+            add_to_cache(user_reaction, drug_results)
+
+            drugs_dict = {}
+            for i in range(len(drugs)):
+                for x in range(len(drugs[i]['patient']['drug'])):
+                    found_drug = drugs[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
+                    if found_drug not in drugs_dict:
+                        drugs_dict[found_drug] = 1
+                    else:
+                        drugs_dict[found_drug] += 1
+                    ### PICK UP FROM HERE ### NOT FINISHSED ###
+
+            drugsDict = dict(sorted(drugs_dict.items(), key=lambda kv: kv[1], reverse=True))
+        except:
+            print('Reaction not found in FDA database. Please try another search.')
+            return None
+
+    return drugsDict
 
 
 def check_cache(key):
@@ -162,6 +193,7 @@ def add_to_cache(key, value):
     with open("drugs_cache.json", "w") as cache:
         json.dump(json_cache, cache, indent=2)
 
+
 # Initializing setup of cache
 json_cache = {}
 path = 'drugs_cache.json'
@@ -174,6 +206,9 @@ if os.path.isfile(path):
 
 if __name__ == "__main__":
     # interactive search should go here
+    drug_test = find_by_reaction('vomiting')
+    print(drug_test)
+
     while True:
         drug_search = input("Please enter the name of a drug to search: ")
         test = find_by_drug(drug_search)
