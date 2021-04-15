@@ -32,13 +32,16 @@ def find_by_drug(drug_name):
     drug_dict = check_cache(drug_name)
 
     if drug_dict:
-        results_list = []
         reactions = drug_dict['results']
-        for i in range(len(reactions)):
-            for x in range(len(reactions[i]['patient']['reaction'])):
-                drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
-                report_id = reactions[i]['safetyreportid']
-                results_list.append((report_id, drug_name, drug_reaction))
+        results_list = results_loop_drug(reactions, drug_name)
+
+        # results_list = []
+        # reactions = drug_dict['results']
+        # for i in range(len(reactions)):
+        #     for x in range(len(reactions[i]['patient']['reaction'])):
+        #         drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
+        #         report_id = reactions[i]['safetyreportid']
+        #         results_list.append((report_id, drug_name, drug_reaction))
 
     elif drug_dict is None:
         fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
@@ -53,12 +56,13 @@ def find_by_drug(drug_name):
             add_to_cache(drug_name, reaction_results)
 
         # Building a dictionary to list reporting reactions and number of occurrences
-            results_list = []
-            for i in range(len(reactions)):
-                for x in range(len(reactions[i]['patient']['reaction'])):
-                    drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
-                    report_id = reactions[i]['safetyreportid']
-                    results_list.append((report_id, drug_name, drug_reaction))
+            results_list = results_loop_drug(reactions, drug_name)
+            # results_list = []
+            # for i in range(len(reactions)):
+            #     for x in range(len(reactions[i]['patient']['reaction'])):
+            #         drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
+            #         report_id = reactions[i]['safetyreportid']
+            #         results_list.append((report_id, drug_name, drug_reaction))
 
         except:
             print('Drug not found in FDA database. Please try another search.')
@@ -85,8 +89,8 @@ def find_by_reaction(user_reaction):
     --------
     results_list: list
         List of tuples containing the FDA Report ID,
-        drug name of user's search,
-        and the associated reaction reported.
+        the drug associated with the reaction reported,
+        and the reaction name of user's search.
     '''
 
     # Can use the same base as 'find_my_drug' probably, but search
@@ -95,13 +99,15 @@ def find_by_reaction(user_reaction):
     reaction_dict = check_cache(user_reaction)
 
     if reaction_dict:
-        results_list = []
         drugs = reaction_dict['results']
-        for i in range(len(drugs)):
-            for x in range(len(drugs[i]['patient']['drug'])):
-                found_drug = drugs[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
-                report_id = drugs[i]['safetyreportid']
-                results_list.append((report_id, found_drug, user_reaction))
+        results_list = results_loop_reactions(drugs, user_reaction)
+        # results_list = []
+        # drugs = reaction_dict['results']
+        # for i in range(len(drugs)):
+        #     for x in range(len(drugs[i]['patient']['drug'])):
+        #         found_drug = drugs[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
+        #         report_id = drugs[i]['safetyreportid']
+        #         results_list.append((report_id, found_drug, user_reaction))
 
     elif reaction_dict is None:
         fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
@@ -115,18 +121,74 @@ def find_by_reaction(user_reaction):
             drugs = drug_results['results']
             add_to_cache(user_reaction, drug_results)
 
-            results_list = []
-            for i in range(len(drugs)):
-                for x in range(len(drugs[i]['patient']['drug'])):
-                    found_drug = drugs[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
-                    report_id = drugs[i]['safetyreportid']
-                    results_list.append((report_id, found_drug, user_reaction))
+            results_list = results_loop_reactions(drugs, user_reaction)
+            # results_list = []
+            # for i in range(len(drugs)):
+            #     for x in range(len(drugs[i]['patient']['drug'])):
+            #         found_drug = drugs[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
+            #         report_id = drugs[i]['safetyreportid']
+            #         results_list.append((report_id, found_drug, user_reaction))
 
         except:
             print('Reaction not found in FDA database. Please try another search.')
             return None
 
     return results_list
+
+def results_loop_drug(raw_data, drug_name):
+    '''Takes the raw results from the FDA API
+    and creates a list of desired values:
+    report_id, drug, reaction
+
+    Parameters:
+    -----------
+    raw_results: list
+        raw results returned from FDA for drug searched
+
+    Returns:
+    --------
+    results_list: list
+        List of tuples containing the FDA Report ID,
+        drug name of user's search,
+        and the associated reaction reported.
+
+    '''
+    results_list = []
+    for i in range(len(raw_data)):
+        for x in range(len(raw_data[i]['patient']['reaction'])):
+            drug_reaction = raw_data[i]['patient']['reaction'][x]['reactionmeddrapt']
+            report_id = raw_data[i]['safetyreportid']
+            results_list.append((report_id, drug_name.upper(), drug_reaction))
+
+    return results_list
+
+def results_loop_reactions(raw_data, user_reaction):
+    '''Takes the raw results from the FDA API
+    and creates a list of desired values:
+    report_id, drug, reaction
+
+    Parameters:
+    -----------
+    raw_results: list
+        raw results returned from FDA for reaction searched
+
+    Returns:
+    --------
+    results_list: list
+        List of tuples containing the FDA Report ID,
+        the drug associated with the reaction reported
+        and reaction name of user's search.
+
+    '''
+    results_list = []
+    for i in range(len(raw_data)):
+        for x in range(len(raw_data[i]['patient']['drug'])):
+            found_drug = raw_data[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
+            report_id = raw_data[i]['safetyreportid']
+            results_list.append((report_id, found_drug.upper(), user_reaction))
+
+    return results_list
+
 
 def create_database():
     '''
@@ -159,8 +221,8 @@ def create_database():
     cur.execute('''
     CREATE TABLE IF NOT EXISTS "Drug_Reactions" (
 	"ReportID"	INTEGER NOT NULL,
-	"Drugs"	INTEGER NOT NULL,
-	"Reactions"	INTEGER NOT NULL,
+	"Drugs"	TEXT NOT NULL,
+	"Reactions"	TEXT NOT NULL,
     UNIQUE (ReportID, Drugs, Reactions) ON CONFLICT IGNORE
 )
     '''
@@ -351,27 +413,27 @@ if os.path.isfile(path):
 
 if __name__ == "__main__":
     # # interactive search should go here
-    # drug_test = find_by_reaction('headache')
-    # drug_test = drug_test.capitalize()
-    # # print(drug_test)
+    drug_test = find_by_reaction('headache')
+    #drug_test = drug_test.capitalize()
+    print(drug_test)
 
-    # write_to_DB('headache', drug_test, 'reaction')
+    write_to_DB('headache', drug_test, 'reaction')
 
-    while True:
-        drug_search = input("Please enter the name of a drug to search: ")
-        drug_search = drug_search.upper()
-        test = find_by_drug(drug_search)
-        # if 'test' is None, allow the user to search again.
-        while test is None:
-            drug_search = input("Please enter the name of a drug to search: ")
-            drug_search = drug_search.upper()
-            test = find_by_drug(drug_search)
+    # while True:
+    #     drug_search = input("Please enter the name of a drug to search: ")
+    #     drug_search = drug_search.upper()
+    #     test = find_by_drug(drug_search)
+    #     # if 'test' is None, allow the user to search again.
+    #     while test is None:
+    #         drug_search = input("Please enter the name of a drug to search: ")
+    #         drug_search = drug_search.upper()
+    #         test = find_by_drug(drug_search)
 
-    #     # Have a way to present as chart here (create functions?)
-        #print(test)
+    # #     # Have a way to present as chart here (create functions?)
+    #     print(test)
 
-        write_to_DB(drug_search, test, 'drug')
+    #     write_to_DB(drug_search, test, 'drug')
 
         # # For Reddit section
         # more_info = input("Would you like to find out more info about this drug (y/n)? ")
-        exit()
+    exit()
