@@ -241,6 +241,19 @@ def write_to_DB(user_search, search_results, search_type):
     conn.close()
 
 
+def bar_chart(drug_name=None, reaction_name=None):
+    ''' Read information from the database to build a bar chart
+    which will display the top ten results based on user request.
+    '''
+
+    ### HERE IS A SAMPLE OF THE QUERY USED TO TEST ###
+    # SELECT Reactions, Count(*) AS "Count"
+    # FROM Drug_Reactions
+    # WHERE Drugs LIKE "%klonopi%"
+    # GROUP BY Reactions
+    # ORDER BY Count DESC
+
+
 def check_cache(key):
     '''
     Checks the cache to see if the data has already been run
@@ -342,25 +355,28 @@ if os.path.isfile(path):
 
 if __name__ == "__main__":
     # # interactive search should go here
-    drug_test = find_by_reaction('headache')
-    # print(drug_test)
+    # drug_test = find_by_reaction('headache')
+    # drug_test = drug_test.capitalize()
+    # # print(drug_test)
 
-    write_to_DB('headache', drug_test, 'reaction')
+    # write_to_DB('headache', drug_test, 'reaction')
 
-    # while True:
-    #     drug_search = input("Please enter the name of a drug to search: ")
-    #     test = find_by_drug(drug_search)
-    #     # if 'test' is None, allow the user to search again.
-    #     while test is None:
-    #         drug_search = input("Please enter the name of a drug to search: ")
-    #         test = find_by_drug(drug_search)
+    while True:
+        drug_search = input("Please enter the name of a drug to search: ")
+        drug_search = drug_search.upper()
+        test = find_by_drug(drug_search)
+        # if 'test' is None, allow the user to search again.
+        while test is None:
+            drug_search = input("Please enter the name of a drug to search: ")
+            drug_search = drug_search.upper()
+            test = find_by_drug(drug_search)
 
 
     #     # Have a way to present as chart here (create functions?)
     #     # print(test)
 
-    #     write_to_DB(drug_search, test, 'drug')
+        write_to_DB(drug_search, test, 'drug')
 
         # # For Reddit section
         # more_info = input("Would you like to find out more info about this drug (y/n)? ")
-        # exit()
+        exit()
