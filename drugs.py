@@ -70,6 +70,7 @@ def find_by_drug(drug_name):
 
     if results_list:
         write_to_DB(drug_name, results_list, 'drug')
+        total_reaction_by_drug(drug_name)
 
     return results_list
 
@@ -136,8 +137,9 @@ def find_by_reaction(user_reaction):
             print('Reaction not found in FDA database. Please try another search.')
             return None
     
-    # if results_list:
-    #     write_to_DB(user_reaction, results_list, 'reaction')
+    if results_list:
+        write_to_DB(user_reaction, results_list, 'reaction')
+        total_drugs_by_reaction(user_reaction)
 
     return results_list
 
@@ -161,10 +163,20 @@ def results_loop_drug(raw_data, drug_name):
     '''
     results_list = []
     for i in range(len(raw_data)):
+        try:
+            age = raw_data[i]['patient']['patientonsetage']
+        except:
+            age = 0
+
+        try:
+            gender = raw_data[i]['patient']['patientsex']
+        except:
+            gender = 0
+
         for x in range(len(raw_data[i]['patient']['reaction'])):
             drug_reaction = raw_data[i]['patient']['reaction'][x]['reactionmeddrapt']
             report_id = raw_data[i]['safetyreportid']
-            results_list.append((report_id, drug_name.upper(), drug_reaction))
+            results_list.append((report_id, drug_name.upper(), drug_reaction, age, gender))
 
     return results_list
 
@@ -188,10 +200,20 @@ def results_loop_reactions(raw_data, user_reaction):
     '''
     results_list = []
     for i in range(len(raw_data)):
+        try:
+            age = raw_data[i]['patient']['patientonsetage']
+        except:
+            age = 0
+
+        try:
+            gender = raw_data[i]['patient']['patientsex']
+        except:
+            gender = 0
+
         for x in range(len(raw_data[i]['patient']['drug'])):
             found_drug = raw_data[i]['patient']['drug'][x]['medicinalproduct'].replace('  ','')
             report_id = raw_data[i]['safetyreportid']
-            results_list.append((report_id, found_drug.upper(), user_reaction))
+            results_list.append((report_id, found_drug.upper(), user_reaction, age, gender))
 
     return results_list
 
@@ -328,8 +350,9 @@ def create_database():
     There are five tables:
     (1) Drugs - table of all drugs searched by user
     (2) Reactions - table of all reactions searched by user
-    (3) Drug_Reactions - table of drugs and associated reactions
+    (3) Report_Summary - table of drugs and associated reactions
         in addition to the FDA's report id for the drug/reaction combo
+        listing Report ID, Age, and Gender
     (4) Reactions_per_Drug - table of drugs that list the number of times
         a reaction has been reported for a specified drug
     (5) Drug_per_Reaction - table that lists the number of times a Drug
@@ -351,13 +374,15 @@ def create_database():
     cur = conn.cursor()
 
     ### CREATION OF THREE TABLES IN DB (IF NOT EXIST) ###
-    # Create the Drugs + Reactions table if does not already exist
+    # Create the Report Summary table if does not already exist
     cur.execute('''
-    CREATE TABLE IF NOT EXISTS "Drug_Reactions" (
+    CREATE TABLE IF NOT EXISTS "Report_Summary" (
 	"ReportID"	INTEGER NOT NULL,
 	"Drugs"	TEXT NOT NULL,
 	"Reactions"	TEXT NOT NULL,
-    UNIQUE (ReportID, Drugs, Reactions) ON CONFLICT IGNORE
+    "Age" INTEGER,
+    "Gender" INTEGER,
+    UNIQUE (ReportID, Drugs, Reactions, Age, Gender) ON CONFLICT IGNORE
 )
     '''
     )
@@ -502,16 +527,18 @@ def write_to_DB(user_search, search_results, search_type):
     if search_type == 'drug':
         cur.execute(f"INSERT OR IGNORE INTO Drugs VALUES ('{user_search}')")
         for i in range(len(search_results)):
-            cur.execute(f"INSERT OR IGNORE INTO Drug_Reactions VALUES\
+            cur.execute(f"INSERT OR IGNORE INTO Report_Summary VALUES\
                 ('{search_results[i][0]}', '{search_results[i][1]}',\
-                    '{search_results[i][2]}')")
+                    '{search_results[i][2]}', '{search_results[i][3]}',\
+                        '{search_results[i][4]}')")
         conn.commit()
     elif search_type == 'reaction':
         cur.execute(f"INSERT OR IGNORE INTO Reactions VALUES ('{user_search}')")
         for i in range(len(search_results)):
-            cur.execute(f"INSERT OR IGNORE INTO Drug_Reactions VALUES\
+            cur.execute(f"INSERT OR IGNORE INTO Report_Summary VALUES\
                 ('{search_results[i][0]}', '{search_results[i][1]}',\
-                    '{search_results[i][2]}')")
+                    '{search_results[i][2]}', '{search_results[i][3]}',\
+                        '{search_results[i][4]}')")
         conn.commit()
 
     # Close the connection to the database
@@ -525,7 +552,7 @@ def bar_chart(drug_name=None, reaction_name=None):
 
     ### HERE IS A SAMPLE OF THE QUERY USED TO TEST ###
     # SELECT Reactions, Count(*) AS "Count"
-    # FROM Drug_Reactions
+    # FROM Report_Summary
     # WHERE Drugs LIKE "%klonopi%"
     # GROUP BY Reactions
     # ORDER BY Count DESC
@@ -684,26 +711,26 @@ if __name__ == "__main__":
     create_database()
 
     ### interactive search should go here ###
-    while True:
-        reaction_search = input("Please enter a reaction to search: ")
-        reaction_search = reaction_search.capitalize()
-        drug_test = find_by_reaction(reaction_search)
-        print(drug_test)
-        exit()
-
-
     # while True:
-    #     drug_search = input("Please enter the name of a drug to search: ")
-    #     drug_search = drug_search.upper()
-    #     test = find_by_drug(drug_search)
-    #     # if 'test' is None, allow the user to search again.
-    #     while test is None:
-    #         drug_search = input("Please enter the name of a drug to search: ")
-    #         drug_search = drug_search.upper()
-    #         test = find_by_drug(drug_search)
-    #         #find_by_drug(drug_search)
-    #     print(test)
+    #     reaction_search = input("Please enter a reaction to search: ")
+    #     reaction_search = reaction_search.capitalize()
+    #     drug_test = find_by_reaction(reaction_search)
+    #     print(drug_test)
     #     exit()
+
+
+    while True:
+        drug_search = input("Please enter the name of a drug to search: ")
+        drug_search = drug_search.upper()
+        test = find_by_drug(drug_search)
+        # if 'test' is None, allow the user to search again.
+        while test is None:
+            drug_search = input("Please enter the name of a drug to search: ")
+            drug_search = drug_search.upper()
+            test = find_by_drug(drug_search)
+            #find_by_drug(drug_search)
+        print(test)
+        exit()
 
 
         # #     # Have a way to present as chart/graphic here (create functions?)
