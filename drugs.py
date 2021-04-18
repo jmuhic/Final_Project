@@ -20,7 +20,7 @@ def find_by_drug(drug_name):
     drug_name: string
         name of drug entered by user
 
-    Returns:
+    Returns: (NONE)
     --------
     results_list: list
         List of tuples containing the FDA Report ID,
@@ -68,6 +68,9 @@ def find_by_drug(drug_name):
             print('Drug not found in FDA database. Please try another search.')
             return None
 
+    if results_list:
+        write_to_DB(drug_name, results_list, 'drug')
+
     return results_list
 
 
@@ -85,7 +88,7 @@ def find_by_reaction(user_reaction):
     user_reaction: string
         name of reaction entered by user
 
-    Returns:
+    Returns: (NONE)
     --------
     results_list: list
         List of tuples containing the FDA Report ID,
@@ -132,6 +135,9 @@ def find_by_reaction(user_reaction):
         except:
             print('Reaction not found in FDA database. Please try another search.')
             return None
+    
+    if results_list:
+        write_to_DB(user_reaction, results_list, 'reaction')
 
     return results_list
 
@@ -202,7 +208,7 @@ def total_reaction_by_drug(drug_name):
     drug_name: string
         name of drug entered by user
 
-    Returns: 
+    Returns:
     --------
     None (writes results to table in DB)
     '''
@@ -248,7 +254,8 @@ def total_reaction_by_drug(drug_name):
             print('Drug not found in FDA database. Please try another search.')
             return None
 
-    write_Reaction_DB(summary_list)
+    if summary_list:
+        write_Reaction_DB(summary_list)
 
 
 def total_drugs_by_reaction(reaction):
@@ -309,7 +316,9 @@ def total_drugs_by_reaction(reaction):
             print('Drug not found in FDA database. Please try another search.')
             return None
 
-    write_Drug_DB(summary_list)
+    if summary_list:
+        write_Drug_DB(summary_list)
+
 
 def create_database():
     '''
@@ -671,12 +680,17 @@ if os.path.isfile(summary_path):
 
 
 if __name__ == "__main__":
-    # # interactive search should go here
-    #drug_test = find_by_reaction('headache')
-    #drug_test = drug_test.capitalize()
-    #print(drug_test)
+    # First thing will be to create the DB to store results
+    create_database()
 
-    #write_to_DB('headache', drug_test, 'reaction')
+    ### interactive search should go here ###
+    while True:
+        reaction_search = input("Please enter a reaction to search: ")
+        reaction_search = reaction_search.capitalize()
+        drug_test = find_by_reaction(reaction_search)
+        print(drug_test)
+        exit()
+
 
     # while True:
     #     drug_search = input("Please enter the name of a drug to search: ")
@@ -687,15 +701,18 @@ if __name__ == "__main__":
     #         drug_search = input("Please enter the name of a drug to search: ")
     #         drug_search = drug_search.upper()
     #         test = find_by_drug(drug_search)
-
-    # #     # Have a way to present as chart here (create functions?)
+    #         #find_by_drug(drug_search)
     #     print(test)
+    #     exit()
+
+
+        # #     # Have a way to present as chart/graphic here (create functions?)
 
     #     write_to_DB(drug_search, test, 'drug')
 
         # # For Reddit section
         # more_info = input("Would you like to find out more info about this drug (y/n)? ")
-    create_database()
+
     #total_reaction_by_drug("Tylenol")
-    total_drugs_by_reaction("cough")
+    #total_drugs_by_reaction("cough")
     exit()
