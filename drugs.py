@@ -136,8 +136,8 @@ def find_by_reaction(user_reaction):
             print('Reaction not found in FDA database. Please try another search.')
             return None
     
-    if results_list:
-        write_to_DB(user_reaction, results_list, 'reaction')
+    # if results_list:
+    #     write_to_DB(user_reaction, results_list, 'reaction')
 
     return results_list
 
@@ -671,7 +671,7 @@ summary_path = 'summary_cache.json'
 
 # if the cache file exist, read from that file
 if os.path.isfile(path):
-    with open('drugs_cache_redo.json') as f:
+    with open('drugs_cache.json') as f:
         json_cache = json.load(f)
 
 if os.path.isfile(summary_path):
