@@ -6,6 +6,8 @@ import secret_drugs
 import sqlite3
 import plotly
 import plotly.graph_objects as go
+import plotly.express as px
+import numpy
 
 
 
@@ -641,6 +643,7 @@ def line_chart(drug_name=None, reaction_name=None):
     yvals = []
 
     # retrieve top ten results of reactions per drug
+    # if user initiated a search to find the most reported reactions for a drug
     if drug_name:
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
@@ -662,7 +665,9 @@ def line_chart(drug_name=None, reaction_name=None):
         basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
-
+ 
+    # retrieve top ten most commonly reported drug for a reaction
+    # if user initiated a search to find most reported drugs for a reaction
     if reaction_name:
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
@@ -674,20 +679,154 @@ def line_chart(drug_name=None, reaction_name=None):
             """
         result = cur.execute(query, (reaction_name,)).fetchall()
 
-        # build bar chart from retrieved DB data (plotly)
+        # build (scatter)line chart from retrieved DB data (plotly)
         for i in range(len(result)):
             xvals.append(result[i][0])
             yvals.append(result[i][1])
 
         bar_data =go.Scatter(x=xvals, y=yvals)
-        #basic_layout = go.Layout(title="Top Reactions per Drug")
         basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}")
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
         con.close()
 
+def sample_reportids(drug_name=None, reaction_name=None):
+    ''' Will present a list of report ids as samples which the user can choose
+    to request on his or her own through the Freedom of Information Act (FOIA).
 
+    Parameters:
+    -----------
+    drug_name: string
+        name of the drug entered by the user
+        If search was for a reaction, default is None
+
+    reaction_name: string
+        name of the reaction entered by the user
+        If search was for a drug, default is None
+
+    Returns:
+    --------
+    None
+    '''
+
+    if drug_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT ReportID
+            FROM Report_Summary
+            WHERE Drugs = ?
+            GROUP BY ReportID
+            LIMIT 10
+            """
+        result = cur.execute(query, (drug_name,)).fetchall()
+
+        print(f"\nSample List of Reports for {drug_name}.  Can be retrieved through FOIA request.")
+        print("-" * 79)
+        for i in range(len(result)):
+            print(f"{i + 1}. {result[i][0]}")
+
+    if reaction_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT ReportID
+            FROM Report_Summary
+            WHERE Reactions = ?
+            GROUP BY ReportID
+            LIMIT 10
+            """
+        result = cur.execute(query, (reaction_name.capitalize(),)).fetchall()
+
+        print(f"\nSample List of Reports for {reaction_name}.  Can be retrieved through FOIA request.")
+        print("-" * 79)
+        for i in range(len(result)):
+            print(f"{i + 1}. {result[i][0]}")
+
+    return result
+
+
+def gender_stats(drug_name=None, reaction_name=None):
+    ''' Will present a pie chart displaying the gender distribution
+    related the results returned for a Drug or Reaction.
+
+    Parameters:
+    -----------
+    drug_name: string
+        name of the drug entered by the user
+        If search was for a reaction, default is None
+
+    reaction_name: string
+        name of the reaction entered by the user
+        If search was for a drug, default is None
+
+    Returns:
+    --------
+    None
+    '''
+    gender = []
+    gender_count = []
+    gender_result = []
+
+    if drug_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Gender, COUNT(*) AS 'num'
+            FROM Report_Summary
+            WHERE Drugs = ?
+            GROUP BY Gender
+            """
+        result = cur.execute(query, (drug_name,)).fetchall()
+
+        # Changing numeric values to Gender Names for pie chart
+        for p in range(len(result)):
+            if result[p][0] == 0:
+                gender_result.append(('Unknown',result[p][1]))
+            elif result[p][0] == 1:
+                gender_result.append(('Male',result[p][1]))
+            elif result[p][0] == 2:
+                gender_result.append(('Female',result[p][1]))
+
+        for i in range(len(gender_result)):
+            gender.append(gender_result[i][0])
+            gender_count.append(gender_result[i][1])
+        fig = px.pie(values=gender_count, names=gender,\
+            title=f"Gender Distribution for Reports related to {drug_name}")
+        fig.show()
+
+
+    if reaction_name:
+        reaction_name = reaction_name.capitalize()
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Gender, COUNT(*) AS 'num'
+            FROM Report_Summary
+            WHERE Reactions = ?
+            GROUP BY Gender
+            """
+        result = cur.execute(query, (reaction_name,)).fetchall()
+
+        # Changing numeric values to Gender Names for pie chart
+        for p in range(len(result)):
+            if result[p][0] == 0:
+                gender_result.append(('Unknown',result[p][1]))
+            elif result[p][0] == 1:
+                gender_result.append(('Male',result[p][1]))
+            elif result[p][0] == 2:
+                gender_result.append(('Female',result[p][1]))
+
+        for i in range(len(gender_result)):
+            gender.append(gender_result[i][0])
+            gender_count.append(gender_result[i][1])
+        fig = px.pie(values=gender_count, names=gender,\
+            title=f"Gender Distribution for Reports related to {reaction_name.upper()}")
+        fig.show()
+
+
+    return result
 
 def check_cache(key):
     '''
@@ -843,11 +982,14 @@ if __name__ == "__main__":
     drug_name = None
     reaction_name = None
 
+
     #drug_name = 'AMLODIPINE'
     reaction_name = 'COUGH'
-    bar_chart(drug_name=drug_name, reaction_name=reaction_name)
-    line_chart(drug_name=drug_name, reaction_name=reaction_name)
-    #print(results)
+    # bar_chart(drug_name=drug_name, reaction_name=reaction_name)
+    # line_chart(drug_name=drug_name, reaction_name=reaction_name)
+    #results = sample_reportids(drug_name=drug_name, reaction_name=reaction_name)
+    results = gender_stats(drug_name=drug_name, reaction_name=reaction_name)
+    print(results)
 
     ### interactive search should go here ###
     # while True:
