@@ -5,6 +5,7 @@ import webbrowser
 import secret_drugs
 import sqlite3
 import plotly
+import plotly.graph_objects as go
 
 
 
@@ -390,8 +391,8 @@ def create_database():
     # Create the Drugs List table if does not already exist
     cur.execute('''
     CREATE TABLE IF NOT EXISTS "Drugs" (
-	"Drug_Name"	TEXT NOT NULL UNIQUE,
-	PRIMARY KEY("Drug_Name")
+	"Drugs"	TEXT NOT NULL UNIQUE,
+	PRIMARY KEY("Drugs")
     )
     '''
     )
@@ -399,8 +400,8 @@ def create_database():
     # Create the Reaction List table if does not already exist
     cur.execute('''
     CREATE TABLE IF NOT EXISTS "Reactions" (
-	"Reaction_Type"	TEXT NOT NULL UNIQUE,
-	PRIMARY KEY("Reaction_Type")
+	"Reactions"	TEXT NOT NULL UNIQUE,
+	PRIMARY KEY("Reactions")
     )
     '''
     )
@@ -409,8 +410,8 @@ def create_database():
     # List count of reactions reported for a specified drug
     cur.execute('''
     CREATE TABLE IF NOT EXISTS "Reactions_per_Drug" (
-	"Drug"	TEXT NOT NULL,
-	"Reaction"	TEXT NOT NULL,
+	"Drugs"	TEXT NOT NULL,
+	"Reactions"	TEXT NOT NULL,
 	"Reaction_Count"	INTEGER NOT NULL
     )
     '''
@@ -420,8 +421,8 @@ def create_database():
     # List count of Drugs reported for a specified Reaction
     cur.execute('''
     CREATE TABLE IF NOT EXISTS "Drug_per_Reaction" (
-	"Reaction"	TEXT NOT NULL,
-	"Drug"	TEXT NOT NULL,
+	"Reactions"	TEXT NOT NULL,
+	"Drugs"	TEXT NOT NULL,
 	"Drug_Count"	INTEGER NOT NULL
     )
     '''
@@ -547,15 +548,145 @@ def write_to_DB(user_search, search_results, search_type):
 
 def bar_chart(drug_name=None, reaction_name=None):
     ''' Read information from the database to build a bar chart
-    which will display the top ten results based on user request.
+    which will display the top ten results for either top Reactions reported
+    or top Drugs per Reaction based on user request.
+
+    Parameters:
+    -----------
+    drug_name: string
+        name of the drug entered by the user
+        If search was for a reaction, default is None
+
+    reaction_name: string
+        name of the reaction entered by the user
+        If search was for a drug, default is None
+
+    Returns:
+    --------
+    None
     '''
 
-    ### HERE IS A SAMPLE OF THE QUERY USED TO TEST ###
-    # SELECT Reactions, Count(*) AS "Count"
-    # FROM Report_Summary
-    # WHERE Drugs LIKE "%klonopi%"
-    # GROUP BY Reactions
-    # ORDER BY Count DESC
+    xvals = []
+    yvals = []
+
+    # retrieve top ten results of reactions per drug
+    if drug_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Reactions, Reaction_Count
+            FROM Reactions_per_Drug
+            WHERE Drugs = ?
+            LIMIT 10
+            """
+        result = cur.execute(query, (drug_name,)).fetchall()
+
+        # build bar chart from retrieved DB data (plotly)
+        for i in range(len(result)):
+            xvals.append(result[i][0])
+            yvals.append(result[i][1])
+
+        bar_data =go.Bar(x=xvals, y=yvals)
+        #basic_layout = go.Layout(title="Top Reactions per Drug")
+        basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        fig.show()
+
+    if reaction_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Drugs, Drug_Count
+            FROM Drug_per_Reaction
+            WHERE Reactions = ?
+            LIMIT 10
+            """
+        result = cur.execute(query, (reaction_name,)).fetchall()
+
+        # build bar chart from retrieved DB data (plotly)
+        for i in range(len(result)):
+            xvals.append(result[i][0])
+            yvals.append(result[i][1])
+
+        bar_data =go.Bar(x=xvals, y=yvals)
+        #basic_layout = go.Layout(title="Top Reactions per Drug")
+        basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        fig.show()
+
+        con.close()
+
+
+def line_chart(drug_name=None, reaction_name=None):
+    ''' Read information from the database to build a line chart
+    which will display the top ten results for either top Reactions reported
+    or top Drugs per Reaction based on user request.
+
+    Parameters:
+    -----------
+    drug_name: string
+        name of the drug entered by the user
+        If search was for a reaction, default is None
+
+    reaction_name: string
+        name of the reaction entered by the user
+        If search was for a drug, default is None
+
+    Returns:
+    --------
+    None
+    '''
+
+    xvals = []
+    yvals = []
+
+    # retrieve top ten results of reactions per drug
+    if drug_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Reactions, Reaction_Count
+            FROM Reactions_per_Drug
+            WHERE Drugs = ?
+            LIMIT 10
+            """
+        result = cur.execute(query, (drug_name,)).fetchall()
+
+        # build bar chart from retrieved DB data (plotly)
+        for i in range(len(result)):
+            xvals.append(result[i][0])
+            yvals.append(result[i][1])
+
+        bar_data =go.Scatter(x=xvals, y=yvals)
+        #basic_layout = go.Layout(title="Top Reactions per Drug")
+        basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        fig.show()
+
+    if reaction_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Drugs, Drug_Count
+            FROM Drug_per_Reaction
+            WHERE Reactions = ?
+            LIMIT 10
+            """
+        result = cur.execute(query, (reaction_name,)).fetchall()
+
+        # build bar chart from retrieved DB data (plotly)
+        for i in range(len(result)):
+            xvals.append(result[i][0])
+            yvals.append(result[i][1])
+
+        bar_data =go.Scatter(x=xvals, y=yvals)
+        #basic_layout = go.Layout(title="Top Reactions per Drug")
+        basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        fig.show()
+
+        con.close()
+
 
 
 def check_cache(key):
@@ -709,6 +840,14 @@ if os.path.isfile(summary_path):
 if __name__ == "__main__":
     # First thing will be to create the DB to store results
     create_database()
+    drug_name = None
+    reaction_name = None
+
+    #drug_name = 'AMLODIPINE'
+    reaction_name = 'COUGH'
+    bar_chart(drug_name=drug_name, reaction_name=reaction_name)
+    line_chart(drug_name=drug_name, reaction_name=reaction_name)
+    #print(results)
 
     ### interactive search should go here ###
     # while True:
@@ -719,18 +858,18 @@ if __name__ == "__main__":
     #     exit()
 
 
-    while True:
-        drug_search = input("Please enter the name of a drug to search: ")
-        drug_search = drug_search.upper()
-        test = find_by_drug(drug_search)
-        # if 'test' is None, allow the user to search again.
-        while test is None:
-            drug_search = input("Please enter the name of a drug to search: ")
-            drug_search = drug_search.upper()
-            test = find_by_drug(drug_search)
-            #find_by_drug(drug_search)
-        print(test)
-        exit()
+    # while True:
+    #     drug_search = input("Please enter the name of a drug to search: ")
+    #     drug_search = drug_search.upper()
+    #     test = find_by_drug(drug_search)
+    #     # if 'test' is None, allow the user to search again.
+    #     # while test is None:
+    #     #     drug_search = input("Please enter the name of a drug to search: ")
+    #     #     drug_search = drug_search.upper()
+    #     #     test = find_by_drug(drug_search)
+    #     #     #find_by_drug(drug_search)
+    #     print(test)
+    #     exit()
 
 
         # #     # Have a way to present as chart/graphic here (create functions?)
