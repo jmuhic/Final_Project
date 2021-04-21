@@ -47,7 +47,6 @@ def print_for_Reddit(response_Dict, drug_name):
     None
     '''
     title_list = []
-    # url_list = []
     count = 0
 
     # Pulling the list of titles from the response_Dict
@@ -66,7 +65,6 @@ def print_for_Reddit(response_Dict, drug_name):
     print(f"\n--- DISCUSSION THREADS FROM REDDIT FOR {drug_name.upper()} ---\n")
     for title in title_list:
         count += 1
-        #title.index = count
         RedditTable.add_row([count, fill(title,width=500)])
 
     print(RedditTable)
@@ -776,7 +774,7 @@ def line_chart(drug_name=None, reaction_name=None):
         basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
- 
+
     # retrieve top ten most commonly reported drug for a reaction
     # if user initiated a search to find most reported drugs for a reaction
     if reaction_name:
@@ -1146,7 +1144,7 @@ def init_tokens_for_Reddit():
     '''
     # will remove below....just for testing purposes
     # information found on stackoverflow
-    input("test")
+    #input("test")
     webbrowser.open(make_authorization_url())
     app.run(port=8080)
     #print(oauth_state)
@@ -1161,7 +1159,7 @@ def init_tokens_for_Reddit():
     access_token = output['access_token']
     refresh_token = output['refresh_token']
     tokens = (access_token, refresh_token)
-    print(output)
+    #print(output)
 
     return tokens
 
@@ -1186,7 +1184,7 @@ def token_refresh(refresh_token):
     response = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data, headers=headers)
     output = response.json()
     access_token = output['access_token']
-    print(output)
+    # print(output)
 
     return access_token
 
@@ -1267,31 +1265,34 @@ def inter_display(search_type, search_select, drug_name=None, reaction_name=None
     # if str.isnumeric(search_select):
     #     search_select = int(search_select)
     if search_type == 'drug':
-        if search_select >=1 and search_select <= 5:
-            if search_select == 1:
-                bar_chart(drug_name=drug_name)
-            elif search_select == 2:
-                line_chart(drug_name=drug_name)
-            elif search_select == 3:
-                gender_stats(drug_name=drug_name)
-            elif search_select == 4:
-                sample_reportids(drug_name=drug_name)
-            elif search_select == 5:
+        #if search_select >=1 and search_select <= 5:
+        if search_select == 1:
+            bar_chart(drug_name=drug_name)
+        elif search_select == 2:
+            line_chart(drug_name=drug_name)
+        elif search_select == 3:
+            gender_stats(drug_name=drug_name)
+        elif search_select == 4:
+            sample_reportids(drug_name=drug_name)
+        elif search_select == 5:
+            if refresh_token:
                 for_Reddit_interactive(drug_name, refresh_token)
-        else:
-            print("Search term out of range.  Please try again.")
+            elif refresh_token is None:
+                print("Requires Reddit access. Please try again.")
+        # else:
+        #     print("Search term out of range.  Please try again.")
     elif search_type == 'reaction':
-        if search_select >=1 and search_select <= 4:
-            if search_select == 1:
-                bar_chart(drug_name=drug_name)
-            elif search_select == 2:
-                line_chart(drug_name=drug_name)
-            elif search_select == 3:
-                gender_stats(drug_name=drug_name)
-            elif search_select == 4:
-                sample_reportids(drug_name=drug_name)
-        else:
-            print("Search term out of range.  Please try again.")
+        # if search_select >=1 and search_select <= 4:
+        if search_select == 1:
+            bar_chart(reaction_name=reaction_name)
+        elif search_select == 2:
+            line_chart(reaction_name=reaction_name)
+        elif search_select == 3:
+            gender_stats(reaction_name=reaction_name)
+        elif search_select == 4:
+            sample_reportids(reaction_name=reaction_name)
+        # else:
+        #     print("Search term out of range.  Please try again.")
     # else:
     #     print("Invalid entry.  Please try again.")
 
@@ -1317,8 +1318,12 @@ def for_Reddit_interactive(drug_name, refresh_token):
     access_token = token_refresh(refresh_token)
     response_Dict = for_Reddit_retrieve(access_token, drug_name)
     print_for_Reddit(response_Dict, drug_name)
-    search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
-    handle_numeric(search_term, response_Dict)
+    while True:
+        search_term = input("Please enter the numeric value for the comment thread you would like to read or 'return': ")
+        if search_term.lower() == 'return':
+            break
+        else:
+            handle_numeric(search_term, response_Dict)
 
 def select_interactive(search_type):
     '''Displays to the user presentation options from which to select.
@@ -1336,34 +1341,36 @@ def select_interactive(search_type):
         user wishes to display.
     '''
 
-    search_select = input("Please select what type of presentation you would like displayed.\n\
-        Enter the numeric value corresponding to the presentation type.\n\
-            Or, select 'exit' to exit or 'return' to start another search.\n\
-            (1) Bar Chart\n\
-            (2) Line Chart\n\
-            (3) Gender Distribution\n\
-            (4) Sample List of FDA Report IDs\n\
-            (5) For Reddit Comment Threads (for drug search only)\n")
+    search_select = input("\nPlease select what type of presentation you would like displayed.\n\
+Enter the numeric value corresponding to the presentation type.\n\
+Or, select 'exit' to exit or 'return' to start another search.\n\
+    (1) Bar Chart\n\
+    (2) Line Chart\n\
+    (3) Gender Distribution\n\
+    (4) Sample List of FDA Report IDs\n\
+    (5) For Reddit Comment Threads (for drug search only and requires Reddit access)\n\
+Enter Here: ")
 
     try:
         if str.isnumeric(search_select):
             search_select = int(search_select)
             if search_type == 'drug':
-                if search_select >= 0 and search_select <= 5:
+                if search_select >= 1 and search_select <= 5:
                     return search_select
                 else:
                     print("Search term out of range.  Please try again.")
             if search_type == 'reaction':
-                if search_select >= 0 and search_select <= 4:
+                if search_select >= 1 and search_select <= 4:
                     return search_select
                 elif search_select == 5:
                     print("That selection is for drug searches only.  Please try again.")
                 else:
                     print("Search term out of range.  Please try again.")
         elif search_select.lower() == 'exit':
+            print("\n")
             exit()
         elif search_select.lower() == 'return':
-            return None
+            search_select = None
     except KeyError:
         print("Invalid input.  Please try again.")
 
@@ -1391,69 +1398,87 @@ if os.path.isfile(summary_path):
 if __name__ == "__main__":
     # First thing will be to create the DB to store results
     create_database()
-    tokens = init_tokens_for_Reddit()
-    access_token = tokens[0]
-    refresh_token = tokens[1]
+    # tokens = init_tokens_for_Reddit()
+    # access_token = tokens[0]
+    # refresh_token = tokens[1]
 
     print("DISCLAIMER: This program will allow the user to retrieve a\
-        list of ReportIDs from FAERS (FDA Adverse Event Reporting System).\
-            Users have the ability to request the entire report from the FDA\
-                through the Freedom of Information Act (FOIA) on an\
-                    individual basis.")
+    list of ReportIDs from FAERS (FDA Adverse Event Reporting System).\
+    Users have the ability to request the entire report from the FDA\
+    through the Freedom of Information Act (FOIA) on an individual basis.\
+    User will have the option to search for Reddit comments.  Please\
+    indicate if you wish to retrieve information for Reddit comment threads.")
+
+    try:
+        allow_for_Reddit = input("\nWould you like to conduct a Reddit search in this program? ('y' or 'n'): ")
+        if allow_for_Reddit.lower() == 'y':
+            tokens = init_tokens_for_Reddit()
+            access_token = tokens[0]
+            refresh_token = tokens[1]
+        elif allow_for_Reddit.lower() == 'n':
+            access_token = None
+            refresh_token = None
+    except KeyError:
+        print("Invalid entry.  Please try again.")
+
 
     while True:
         try:
-            search_type = input(f"Would you like to search by 'drug' or 'reaction'\
-                or 'exit': ")
+            search_type = input(f"\nWould you like to search by 'drug' or 'reaction' or 'exit': ")
 
-            # Interactive search/display options based on user's input
-            # for search_type
+            # Interactive search/display for search by drug
             if search_type.lower() == 'drug':
                 # insert interactive drug search/display
-                drug_name = input("Please enter the name of a drug to search or 'exit': ")
+                drug_name = input("\nPlease enter the name of a drug to search or 'exit': ")
                 if drug_name.lower() == 'exit':
+                    print("\n")
                     exit()
                 else:
                     drug_name = drug_name.upper()
                     drug_result = find_by_drug(drug_name)
                     # if 'drug_result' is None, allow the user to search again.
                     while drug_result is None:
-                        drug_name = input("Please enter the name of a drug to search or 'exit': ")
+                        drug_name = input("\nPlease enter the name of a drug to search or 'exit': ")
                         if drug_name.lower() == 'exit':
+                            print("\n")
                             exit()
                         else:
                             drug_name = drug_name.upper()
                             drug_result = find_by_drug(drug_name)
-                    search_select = select_interactive(search_type)
-                    if search_select:
-                        inter_display(search_type, search_select, drug_name=drug_name, refresh_token=refresh_token)
-                    else:
-                        pass
+                    while True:
+                        search_select = select_interactive(search_type)
+                        if search_select:
+                            inter_display(search_type, search_select, drug_name=drug_name, refresh_token=refresh_token)
+                        elif search_select is None:
+                            break
 
-            # Interactive Search by Reaction
+            # Interactive search/display for search by reaction
             elif search_type.lower() == 'reaction':
                 reaction_name = input("Please enter the name of a reaction to search or 'exit': ")
                 if reaction_name == 'exit':
+                    print("\n")
                     exit()
                 else:
                     reaction_name = reaction_name.capitalize()
                     reaction_result = find_by_reaction(reaction_name)
                     # if 'reaction_result' is None, allow the user to search again.
                     while reaction_result is None:
-                        reaction_name = input("Please enter the name of a reaction to search or 'exit': ")
+                        reaction_name = input("\nPlease enter the name of a reaction to search or 'exit': ")
                         if reaction_name.lower() == 'exit':
+                            print("\n")
                             exit()
                         else:
                             reaction_name = reaction_name.capitalize()
                             reaction_result = find_by_reaction(reaction_name)
-                    search_select = select_interactive(search_type)
-                    if search_select:
-                        inter_display(search_type, search_select, reaction_name=reaction_name)
-                    else:
-                        pass
+                    while True:
+                        search_select = select_interactive(search_type)
+                        if search_select:
+                            inter_display(search_type, search_select, reaction_name=reaction_name)
+                        elif search_select is None:
+                            break
             elif search_type.lower() == 'exit':
+                print("\n")
                 exit()
-                pass
             else:
                 print("Invalid input.  Please try again.")
         except KeyError:
@@ -1519,7 +1544,7 @@ if __name__ == "__main__":
     # print_for_Reddit(response_Dict, drug_name)
     # search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
     # handle_numeric(search_term, response_Dict)
-
+    print("\n")
     exit()
 
 
