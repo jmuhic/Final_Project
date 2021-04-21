@@ -15,12 +15,112 @@ import requests.auth
 import urllib
 import urllib.parse
 import click
+from prettytable import PrettyTable
+from textwrap import fill
 
 CLIENT_ID = secret_drugs.REDDIT_CLIENT_ID
 CLIENT_SECRET = secret_drugs.REDDIT_CLIENT_SECRET
 REDIRECT_URI = secret_drugs.REDIRECT_URI
 REDDIT_USERNAME = secret_drugs.REDDIT_USERNAME
 REDDIT_PASSWORD = secret_drugs.REDDIT_PASSWORD
+
+
+def print_for_Reddit(response_Dict, drug_name):
+    '''
+    Takes the information retrieved from Reddit search for a
+    particular drug and its discussed reactions and put into
+    a table for display for the user to select a thread.
+
+    Parameters:
+    -----------
+    response_Dict: dictionary
+        dictionary containing the lists of
+        (1) Titles of comment threads retrieved from Reddit
+        (2) URLs of comment threads retrieved from Reddit
+
+    drug_name: string
+        name of the drug user entered to search for addtional
+        information from Reddit discussion threads
+
+    Returns:
+    --------
+    None
+    '''
+    title_list = []
+    # url_list = []
+    count = 0
+
+    # Pulling the list of titles from the response_Dict
+    for i in range(len(response_Dict['Title'])):
+        title_list.append(response_Dict['Title'][i])
+
+    # for i in range(len(response_Dict['URL'])):
+    #     url_list.append(response_Dict['URL'][i])
+
+    RedditTable = PrettyTable(border=False, header=True)
+    RedditTable.field_names = ["ID","TITLE OF COMMENT THREAD"]
+    RedditTable.align["ID"] = "r"
+    RedditTable.align["TITLE OF COMMENT THREAD"] = "l"
+
+    # Print output in formatted setting - for Reddit
+    print(f"\n--- DISCUSSION THREADS FROM REDDIT FOR {drug_name.upper()} ---\n")
+    for title in title_list:
+        count += 1
+        #title.index = count
+        RedditTable.add_row([count, fill(title,width=500)])
+
+    print(RedditTable)
+    print("\n")
+
+def handle_numeric(search_term, response_Dict):
+    '''
+    Handles a search with a numeric value and opens URL
+    if value entered is in range for Reddit comments.
+
+    Parameter:
+    ----------
+    search_term: string
+        user-entered string to search
+
+    repsonse_Dict: dictionary
+        dictionary containing the list of results retrieved
+        from Reddit search for comments related to searched
+        drugs and reaction
+
+    Returns:
+    --------
+    None
+    '''
+    url_list = []
+
+    if str.isnumeric(search_term):
+        search_term = int(search_term)
+        search_value = search_term - 1
+    else:
+        print("Value entered is not numeric.  Please try again.")
+        return None
+
+    if response_Dict == []:
+        print(f"Search has not yet been completed to use numeric value.")
+        return False
+
+    for i in range(len(response_Dict['URL'])):
+        url_list.append(response_Dict['URL'][i])
+
+    if search_term > len(url_list) or search_term <= 0:
+        print(f"Search term out of range. Please try again.")
+    else:
+        url = response_Dict['URL'][search_value]
+        webbrowser.open(url)
+
+    # if response_Dict['URL'][search_value] == False:
+    #     print(f"Search term out of range. Please try again.")
+    # else:
+    #     url = response_Dict['URL'][search_value]
+    #     webbrowser.open(url)
+
+
+
 
 def find_by_drug(drug_name):
     '''
@@ -34,7 +134,7 @@ def find_by_drug(drug_name):
     drug_name: string
         name of drug entered by user
 
-    Returns: (NONE)
+    Returns:
     --------
     results_list: list
         List of tuples containing the FDA Report ID,
@@ -150,7 +250,7 @@ def find_by_reaction(user_reaction):
         except:
             print('Reaction not found in FDA database. Please try another search.')
             return None
-    
+
     if results_list:
         write_to_DB(user_reaction, results_list, 'reaction')
         total_drugs_by_reaction(user_reaction)
@@ -971,7 +1071,8 @@ def create_table(fda_results, search_type, user_search):
     conn.close()
 
 
-# See References at end of program
+# See References at end of program for Reddit
+# OATH2 research
 app = Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -1009,7 +1110,7 @@ def make_authorization_url():
 # Left as an exercise to the reader.
 # You may want to store valid states in a database or memcache,
 # or perhaps cryptographically sign them and verify upon retrieval.
-# I chose not to use this
+# I chose not to use the above three suggestion, but left for future reference
 def save_created_state(state):
 	pass
 
@@ -1197,17 +1298,22 @@ if __name__ == "__main__":
     ### For Reddit section ###
         # more_info = input("Would you like to find out more info about this drug (y/n)? ")
 
-    temp = init_tokens_for_Reddit()
-    access_token = temp[0]
-    refresh_token = temp[1]
-    print(temp)
+    # temp = init_tokens_for_Reddit()
+    # access_token = temp[0]
+    # refresh_token = temp[1]
+    # print(temp)
 
-    access_token2 = token_refresh(refresh_token)
-    print(access_token2)
+    # access_token2 = token_refresh(refresh_token)
+    # print(access_token2)
 
     drug_name = 'ibuprofen'
-    temp3 = for_Reddit_retrieve(access_token2, drug_name)
-    print(temp3)
+    # response_Dict = for_Reddit_retrieve(access_token2, drug_name)
+    response_Dict = for_Reddit_retrieve(access_token2, drug_name)
+    #print(temp3)
+
+    print_for_Reddit(response_Dict, drug_name)
+    search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
+    handle_numeric(search_term, response_Dict)
 
     exit()
 
