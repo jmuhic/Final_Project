@@ -183,8 +183,8 @@ def find_by_drug(drug_name):
             return None
 
     if results_list:
-        write_to_DB(drug_name, results_list, 'drug')
-        total_reaction_by_drug(drug_name)
+        write_to_DB(drug_name, results_list, 'drug') # store in DB
+        total_reaction_by_drug(drug_name) # store in cache
 
     return results_list
 
@@ -252,8 +252,8 @@ def find_by_reaction(user_reaction):
             return None
 
     if results_list:
-        write_to_DB(user_reaction, results_list, 'reaction')
-        total_drugs_by_reaction(user_reaction)
+        write_to_DB(user_reaction, results_list, 'reaction') # store in DB
+        total_drugs_by_reaction(user_reaction) # store in cache
 
     return results_list
 
@@ -1234,6 +1234,142 @@ def for_Reddit_retrieve(access_token, drug_name):
 
     return response_Dict
 
+def inter_display(search_type, search_select, drug_name=None, reaction_name=None, refresh_token=None):
+    '''Will present to the user the presentation selected for display.
+
+    Parameters:
+    -----------
+    search_type: string
+        Indicates the type of search the user has executed.  Will
+        either be 'drug' or 'reaction'.  Search by 'reaction' will
+        not be able to conduct a 'for_Reddit' search.
+
+    search_select: integer
+        Value the user entered as a selection for which type of
+        presentation he or she would like to display.
+
+    drug_name: string
+        the name of the drug which the user searched;
+        default is None.
+
+    reaction_name: string
+        the name of the reaction which the user searched;
+        default is None.
+
+    refresh_token: alphanumeric
+        this is a token created by Reddit that will be used to retrieve
+        comment threads from Reddit for drug searches
+
+    Returns:
+    --------
+    None
+    '''
+    # if str.isnumeric(search_select):
+    #     search_select = int(search_select)
+    if search_type == 'drug':
+        if search_select >=1 and search_select <= 5:
+            if search_select == 1:
+                bar_chart(drug_name=drug_name)
+            elif search_select == 2:
+                line_chart(drug_name=drug_name)
+            elif search_select == 3:
+                gender_stats(drug_name=drug_name)
+            elif search_select == 4:
+                sample_reportids(drug_name=drug_name)
+            elif search_select == 5:
+                for_Reddit_interactive(drug_name, refresh_token)
+        else:
+            print("Search term out of range.  Please try again.")
+    elif search_type == 'reaction':
+        if search_select >=1 and search_select <= 4:
+            if search_select == 1:
+                bar_chart(drug_name=drug_name)
+            elif search_select == 2:
+                line_chart(drug_name=drug_name)
+            elif search_select == 3:
+                gender_stats(drug_name=drug_name)
+            elif search_select == 4:
+                sample_reportids(drug_name=drug_name)
+        else:
+            print("Search term out of range.  Please try again.")
+    # else:
+    #     print("Invalid entry.  Please try again.")
+
+
+def for_Reddit_interactive(drug_name, refresh_token):
+    '''Process for presenting interactive display of comments
+    to the user if selected for a particular drug.
+
+    Parameters:
+    -----------
+    drug_name: string
+        the name of the drug which the user searched;
+        default is None.
+
+    refresh_token: alphanumeric
+        this is a token created by Reddit that will be used to retrieve
+        comment threads from Reddit for drug searches
+
+    Returns:
+    --------
+    None
+    '''
+    access_token = token_refresh(refresh_token)
+    response_Dict = for_Reddit_retrieve(access_token, drug_name)
+    print_for_Reddit(response_Dict, drug_name)
+    search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
+    handle_numeric(search_term, response_Dict)
+
+def select_interactive(search_type):
+    '''Displays to the user presentation options from which to select.
+
+    Parameters:
+    -----------
+    search_type: string
+        indicates whether the user's search is by 'reaction'
+        or 'drug'
+
+    Returns:
+    --------
+    search_select: integer
+        the integer value corresponding to the type of presentation the
+        user wishes to display.
+    '''
+
+    search_select = input("Please select what type of presentation you would like displayed.\n\
+        Enter the numeric value corresponding to the presentation type.\n\
+            Or, select 'exit' to exit or 'return' to start another search.\n\
+            (1) Bar Chart\n\
+            (2) Line Chart\n\
+            (3) Gender Distribution\n\
+            (4) Sample List of FDA Report IDs\n\
+            (5) For Reddit Comment Threads (for drug search only)\n")
+
+    try:
+        if str.isnumeric(search_select):
+            search_select = int(search_select)
+            if search_type == 'drug':
+                if search_select >= 0 and search_select <= 5:
+                    return search_select
+                else:
+                    print("Search term out of range.  Please try again.")
+            if search_type == 'reaction':
+                if search_select >= 0 and search_select <= 4:
+                    return search_select
+                elif search_select == 5:
+                    print("That selection is for drug searches only.  Please try again.")
+                else:
+                    print("Search term out of range.  Please try again.")
+        elif search_select.lower() == 'exit':
+            exit()
+        elif search_select.lower() == 'return':
+            return None
+    except KeyError:
+        print("Invalid input.  Please try again.")
+
+    return search_select
+
+#### END OF FUNCTIONS ###
 
 # Initializing setup of cache
 json_cache = {}
@@ -1255,6 +1391,76 @@ if os.path.isfile(summary_path):
 if __name__ == "__main__":
     # First thing will be to create the DB to store results
     create_database()
+    tokens = init_tokens_for_Reddit()
+    access_token = tokens[0]
+    refresh_token = tokens[1]
+
+    print("DISCLAIMER: This program will allow the user to retrieve a\
+        list of ReportIDs from FAERS (FDA Adverse Event Reporting System).\
+            Users have the ability to request the entire report from the FDA\
+                through the Freedom of Information Act (FOIA) on an\
+                    individual basis.")
+
+    while True:
+        try:
+            search_type = input(f"Would you like to search by 'drug' or 'reaction'\
+                or 'exit': ")
+
+            # Interactive search/display options based on user's input
+            # for search_type
+            if search_type.lower() == 'drug':
+                # insert interactive drug search/display
+                drug_name = input("Please enter the name of a drug to search or 'exit': ")
+                if drug_name.lower() == 'exit':
+                    exit()
+                else:
+                    drug_name = drug_name.upper()
+                    drug_result = find_by_drug(drug_name)
+                    # if 'drug_result' is None, allow the user to search again.
+                    while drug_result is None:
+                        drug_name = input("Please enter the name of a drug to search or 'exit': ")
+                        if drug_name.lower() == 'exit':
+                            exit()
+                        else:
+                            drug_name = drug_name.upper()
+                            drug_result = find_by_drug(drug_name)
+                    search_select = select_interactive(search_type)
+                    if search_select:
+                        inter_display(search_type, search_select, drug_name=drug_name, refresh_token=refresh_token)
+                    else:
+                        pass
+
+            # Interactive Search by Reaction
+            elif search_type.lower() == 'reaction':
+                reaction_name = input("Please enter the name of a reaction to search or 'exit': ")
+                if reaction_name == 'exit':
+                    exit()
+                else:
+                    reaction_name = reaction_name.capitalize()
+                    reaction_result = find_by_reaction(reaction_name)
+                    # if 'reaction_result' is None, allow the user to search again.
+                    while reaction_result is None:
+                        reaction_name = input("Please enter the name of a reaction to search or 'exit': ")
+                        if reaction_name.lower() == 'exit':
+                            exit()
+                        else:
+                            reaction_name = reaction_name.capitalize()
+                            reaction_result = find_by_reaction(reaction_name)
+                    search_select = select_interactive(search_type)
+                    if search_select:
+                        inter_display(search_type, search_select, reaction_name=reaction_name)
+                    else:
+                        pass
+            elif search_type.lower() == 'exit':
+                exit()
+                pass
+            else:
+                print("Invalid input.  Please try again.")
+        except KeyError:
+            print("Invalid entry. Please try again.")
+
+
+########## TESTING CODE BELOW ##########
 
     # drug_name = None
     # reaction_name = None
@@ -1306,14 +1512,13 @@ if __name__ == "__main__":
     # access_token2 = token_refresh(refresh_token)
     # print(access_token2)
 
-    drug_name = 'ibuprofen'
+    # drug_name = 'ibuprofen'
     # response_Dict = for_Reddit_retrieve(access_token2, drug_name)
-    response_Dict = for_Reddit_retrieve(access_token2, drug_name)
-    #print(temp3)
+    # #print(temp3)
 
-    print_for_Reddit(response_Dict, drug_name)
-    search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
-    handle_numeric(search_term, response_Dict)
+    # print_for_Reddit(response_Dict, drug_name)
+    # search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
+    # handle_numeric(search_term, response_Dict)
 
     exit()
 
