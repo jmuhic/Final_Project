@@ -8,8 +8,19 @@ import plotly
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy
+from flask import Flask
+from flask import request
+import logging
+import requests.auth
+import urllib
+import urllib.parse
+import click
 
-
+CLIENT_ID = secret_drugs.REDDIT_CLIENT_ID
+CLIENT_SECRET = secret_drugs.REDDIT_CLIENT_SECRET
+REDIRECT_URI = secret_drugs.REDIRECT_URI
+REDDIT_USERNAME = secret_drugs.REDDIT_USERNAME
+REDDIT_PASSWORD = secret_drugs.REDDIT_PASSWORD
 
 def find_by_drug(drug_name):
     '''
@@ -959,6 +970,165 @@ def create_table(fda_results, search_type, user_search):
 
     conn.close()
 
+
+app = Flask(__name__)
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+log.disabled = True
+oauth_state=''
+oauth_code=''
+
+@app.route('/')
+def get_auth_parameters():
+    global oauth_state
+    global oauth_code
+    oauth_state = request.args.get('state')
+    oauth_code = request.args.get('code')
+
+    func = request.environ.get('werkzeug.server.shutdown')
+    func()
+    return '<script>window.onload=window.close()</script>'
+
+def make_authorization_url():
+	# Generate a random string for the state parameter
+	# Save it for use later to prevent xsrf attacks
+	from uuid import uuid4
+	state = str(uuid4())
+	save_created_state(state)
+	params = {"client_id": CLIENT_ID,
+			  "response_type": "code",
+			  "state": state,
+			  "redirect_uri": REDIRECT_URI,
+			  "duration": "permanent",
+			  "scope": "identity,edit,flair,history,modconfig,modflair,modlog,modposts,modwiki,mysubreddits,privatemessages,read,report,save,submit,subscribe,vote,wikiedit,wikiread"}
+	import urllib
+	url = "https://ssl.reddit.com/api/v1/authorize?" + urllib.parse.urlencode(params)
+	return url
+
+# Left as an exercise to the reader.
+# You may want to store valid states in a database or memcache,
+# or perhaps cryptographically sign them and verify upon retrieval.
+# I chose not to use this
+def save_created_state(state):
+	pass
+
+def is_valid_state(state):
+	return True
+
+# Used these functions to suppress warning messages from being displayed to the user
+def secho(text, file=None, nl=None, err=None, color=None, **styles):
+   pass
+
+def echo(text, file=None, nl=None, err=None, color=None, **styles):
+   pass
+
+click.echo = echo
+click.secho = secho
+
+def init_tokens_for_Reddit():
+    '''Initial creation of tokens for access to
+    the Reddit application
+
+    Parameters:
+    -----------
+    refresh_token: string
+        token provided by Reddit OATH to refresh the
+        access token
+
+    Returns:
+    --------
+    tokens: tuple
+        tuple containing both the access_token and
+        refresh_token retrieved
+
+    '''
+    input("test")
+    webbrowser.open(make_authorization_url())
+    app.run(port=8080)
+    print(oauth_state)
+    print(oauth_code)
+
+    client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
+    post_data = {"grant_type": "authorization_code", "code": oauth_code, "redirect_uri": REDIRECT_URI}
+    headers = {"User-Agent": "ChangeMeClient/0.1 by bluewolfhi1817"}
+    response = requests.post("https://ssl.reddit.com/api/v1/access_token", auth=client_auth, data=post_data, headers=headers)
+    output = response.json()
+
+    access_token = output['access_token']
+    refresh_token = output['refresh_token']
+    tokens = (access_token, refresh_token)
+    print(output)
+
+    return tokens
+
+def token_refresh(refresh_token):
+    '''Refreshing the Reddit token after it expires.
+
+    Parameters:
+    -----------
+    refresh_token: string
+        token provided by Reddit OATH to refresh the
+        access token
+
+    Returns:
+    --------
+    access_token: string
+        the new access token to be used for Reddit access
+    '''
+    client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
+    post_data = {"grant_type": "refresh_token", "refresh_token": refresh_token}
+    headers = {"User-Agent": f"ChangeMeClient/0.1 by {REDDIT_USERNAME}"}
+    response = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data, headers=headers)
+    output = response.json()
+    access_token = output['access_token']
+    print(output)
+
+    return access_token
+
+def for_Reddit_retrieve(access_token, drug_name):
+    '''Refreshing the Reddit token after it expires.
+
+    Parameters:
+    -----------
+    access_token: string
+        access token required to retrieve information from
+        the Reddit application
+
+    drug_search: string
+        the name of the drug which the user searched and is
+        attempting to find more information on Reddit
+
+    Returns:
+    --------
+    URL_list: list
+        list of Titles and URLs related to the user's search
+    '''
+
+    url_list = []
+    title_list = []
+
+    headers = {"Authorization": f"bearer {access_token}", "User-Agent": f"ChangeMeClient/0.1 by {REDDIT_USERNAME}"}
+
+    url_search = "https://oauth.reddit.com/search.json?limit=100&t=month&type=link&q="
+    url_end = "+AND+reaction"
+
+    response = requests.get(url_search + drug_name + url_end, headers=headers)
+
+    output = response.json()
+
+    for i in range(10):
+        title_list.append(output['data']['children'][i]['data']['title'])
+        url_list.append(output['data']['children'][i]['data']['url'])
+
+
+    response_Dict = {
+        "Title": title_list,
+        "URL": url_list
+    }
+
+    return response_Dict
+
+
 # Initializing setup of cache
 json_cache = {}
 path = 'drugs_cache.json'
@@ -979,17 +1149,18 @@ if os.path.isfile(summary_path):
 if __name__ == "__main__":
     # First thing will be to create the DB to store results
     create_database()
-    drug_name = None
-    reaction_name = None
+
+    # drug_name = None
+    # reaction_name = None
 
 
     #drug_name = 'AMLODIPINE'
-    reaction_name = 'COUGH'
+    # reaction_name = 'COUGH'
     # bar_chart(drug_name=drug_name, reaction_name=reaction_name)
     # line_chart(drug_name=drug_name, reaction_name=reaction_name)
     #results = sample_reportids(drug_name=drug_name, reaction_name=reaction_name)
-    results = gender_stats(drug_name=drug_name, reaction_name=reaction_name)
-    print(results)
+    # results = gender_stats(drug_name=drug_name, reaction_name=reaction_name)
+    # print(results)
 
     ### interactive search should go here ###
     # while True:
@@ -1018,9 +1189,19 @@ if __name__ == "__main__":
 
     #     write_to_DB(drug_search, test, 'drug')
 
-        # # For Reddit section
+    ### For Reddit section ###
         # more_info = input("Would you like to find out more info about this drug (y/n)? ")
 
-    #total_reaction_by_drug("Tylenol")
-    #total_drugs_by_reaction("cough")
+    temp = init_tokens_for_Reddit()
+    access_token = temp[0]
+    refresh_token = temp[1]
+    print(temp)
+
+    access_token2 = token_refresh(refresh_token)
+    print(access_token2)
+
+    drug_name = 'ibuprofen'
+    temp3 = for_Reddit_retrieve(access_token2, drug_name)
+    print(temp3)
+
     exit()
