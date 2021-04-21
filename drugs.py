@@ -182,7 +182,7 @@ def find_by_drug(drug_name):
 
     if results_list:
         write_to_DB(drug_name, results_list, 'drug') # store in DB
-        total_reaction_by_drug(drug_name) # store in cache
+        total_reaction_by_drug(drug_name)
 
     return results_list
 
@@ -251,7 +251,7 @@ def find_by_reaction(user_reaction):
 
     if results_list:
         write_to_DB(user_reaction, results_list, 'reaction') # store in DB
-        total_drugs_by_reaction(user_reaction) # store in cache
+        total_drugs_by_reaction(user_reaction)
 
     return results_list
 
@@ -698,12 +698,12 @@ def bar_chart(drug_name=None, reaction_name=None):
             yvals.append(result[i][1])
 
         bar_data =go.Bar(x=xvals, y=yvals)
-        #basic_layout = go.Layout(title="Top Reactions per Drug")
         basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
     if reaction_name:
+        reaction_name = reaction_name.upper()
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
         query = """
@@ -720,7 +720,6 @@ def bar_chart(drug_name=None, reaction_name=None):
             yvals.append(result[i][1])
 
         bar_data =go.Bar(x=xvals, y=yvals)
-        #basic_layout = go.Layout(title="Top Reactions per Drug")
         basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}")
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
@@ -778,6 +777,7 @@ def line_chart(drug_name=None, reaction_name=None):
     # retrieve top ten most commonly reported drug for a reaction
     # if user initiated a search to find most reported drugs for a reaction
     if reaction_name:
+        reaction_name = reaction_name.upper()
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
         query = """
@@ -1454,7 +1454,7 @@ if __name__ == "__main__":
 
             # Interactive search/display for search by reaction
             elif search_type.lower() == 'reaction':
-                reaction_name = input("Please enter the name of a reaction to search or 'exit': ")
+                reaction_name = input("\nPlease enter the name of a reaction to search or 'exit': ")
                 if reaction_name == 'exit':
                     print("\n")
                     exit()
