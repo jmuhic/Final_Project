@@ -971,6 +971,7 @@ def create_table(fda_results, search_type, user_search):
     conn.close()
 
 
+# See References at end of program
 app = Flask(__name__)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -1042,11 +1043,13 @@ def init_tokens_for_Reddit():
         refresh_token retrieved
 
     '''
+    # will remove below....just for testing purposes
+    # information found on stackoverflow
     input("test")
     webbrowser.open(make_authorization_url())
     app.run(port=8080)
-    print(oauth_state)
-    print(oauth_code)
+    #print(oauth_state)
+    #print(oauth_code)
 
     client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
     post_data = {"grant_type": "authorization_code", "code": oauth_code, "redirect_uri": REDIRECT_URI}
@@ -1075,6 +1078,7 @@ def token_refresh(refresh_token):
     access_token: string
         the new access token to be used for Reddit access
     '''
+    # Instructions from Reddit github
     client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
     post_data = {"grant_type": "refresh_token", "refresh_token": refresh_token}
     headers = {"User-Agent": f"ChangeMeClient/0.1 by {REDDIT_USERNAME}"}
@@ -1116,6 +1120,7 @@ def for_Reddit_retrieve(access_token, drug_name):
 
     output = response.json()
 
+    # Loop through to find the first 10 for display (keep in Dict for now)
     for i in range(10):
         title_list.append(output['data']['children'][i]['data']['title'])
         url_list.append(output['data']['children'][i]['data']['url'])
@@ -1205,3 +1210,10 @@ if __name__ == "__main__":
     print(temp3)
 
     exit()
+
+
+# References for Reddit OATH2:
+# https://stackoverflow.com/questions/14888799/disable-console-messages-in-flask-server
+# https://stackoverflow.com/questions/11774265/how-do-you-access-the-query-string-in-flask-routes/55252011#55252011
+# https://github.com/reddit-archive/reddit/wiki/OAuth2-Python-Example
+# https://github.com/reddit-archive/reddit/wiki/OAuth2
