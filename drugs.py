@@ -16,6 +16,7 @@ import urllib
 import urllib.parse
 import click
 from prettytable import PrettyTable
+import textwrap
 from textwrap import fill
 
 CLIENT_ID = secret_drugs.REDDIT_CLIENT_ID
@@ -1342,14 +1343,14 @@ def select_interactive(search_type):
     '''
 
     search_select = input("\nPlease select what type of presentation you would like displayed.\n\
-Enter the numeric value corresponding to the presentation type.\n\
-Or, select 'exit' to exit or 'return' to start another search.\n\
-    (1) Bar Chart\n\
-    (2) Line Chart\n\
-    (3) Gender Distribution\n\
-    (4) Sample List of FDA Report IDs\n\
-    (5) For Reddit Comment Threads (for drug search only and requires Reddit access)\n\
-Enter Here: ")
+    Enter the numeric value corresponding to the presentation type.\n\
+    Or, select 'exit' to exit or 'return' to start another search.\n\
+        (1) Bar Chart\n\
+        (2) Line Chart\n\
+        (3) Gender Distribution\n\
+        (4) Sample List of FDA Report IDs\n\
+        (5) For Reddit Comment Threads (for drug search only and requires Reddit access)\n\
+    Enter Selection Here: ")
 
     try:
         if str.isnumeric(search_select):
@@ -1371,6 +1372,8 @@ Enter Here: ")
             exit()
         elif search_select.lower() == 'return':
             search_select = None
+        else:
+            print("Invalid input. Please try again.")
     except KeyError:
         print("Invalid input.  Please try again.")
 
@@ -1401,13 +1404,15 @@ if __name__ == "__main__":
     # tokens = init_tokens_for_Reddit()
     # access_token = tokens[0]
     # refresh_token = tokens[1]
+    print('\n')
 
-    print("DISCLAIMER: This program will allow the user to retrieve a\
-    list of ReportIDs from FAERS (FDA Adverse Event Reporting System).\
-    Users have the ability to request the entire report from the FDA\
-    through the Freedom of Information Act (FOIA) on an individual basis.\
-    User will have the option to search for Reddit comments.  Please\
-    indicate if you wish to retrieve information for Reddit comment threads.")
+    print('DISCLAIMER: This program will allow the user to retrieve a ' \
+        'list of ReportIDs from FAERS (FDA Adverse Event Reporting System). ' \
+        'Users have the ability to request the entire report from the FDA ' \
+        'through the Freedom of Information Act (FOIA) on an individual basis. ' \
+        'Users will also have the option to search for Reddit comments.  Please ' \
+        'indicate if you wish to retrieve information for Reddit comment threads, '
+        'if you have already have a Reddit account.')
 
     try:
         allow_for_Reddit = input("\nWould you like to conduct a Reddit search in this program? ('y' or 'n'): ")
