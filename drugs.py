@@ -18,6 +18,8 @@ import click
 from prettytable import PrettyTable
 import textwrap
 from textwrap import fill
+import plotly.express as px
+from pandas import DataFrame
 
 CLIENT_ID = secret_drugs.REDDIT_CLIENT_ID
 CLIENT_SECRET = secret_drugs.REDDIT_CLIENT_SECRET
@@ -699,7 +701,8 @@ def bar_chart(drug_name=None, reaction_name=None):
             yvals.append(result[i][1])
 
         bar_data =go.Bar(x=xvals, y=yvals)
-        basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
+        basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}",
+            title_font_size=30)
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
@@ -721,7 +724,8 @@ def bar_chart(drug_name=None, reaction_name=None):
             yvals.append(result[i][1])
 
         bar_data =go.Bar(x=xvals, y=yvals)
-        basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}")
+        basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}",
+            title_font_size=30)
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
@@ -771,7 +775,8 @@ def line_chart(drug_name=None, reaction_name=None):
 
         bar_data =go.Scatter(x=xvals, y=yvals)
         #basic_layout = go.Layout(title="Top Reactions per Drug")
-        basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}")
+        basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}",
+            title_font_size=30)
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
@@ -795,8 +800,64 @@ def line_chart(drug_name=None, reaction_name=None):
             yvals.append(result[i][1])
 
         bar_data =go.Scatter(x=xvals, y=yvals)
-        basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}")
+        basic_layout = go.Layout(title=f"Top 10 Reported Drugs for {reaction_name}",
+            title_font_size=30)
         fig = go.Figure(data=bar_data, layout=basic_layout)
+        fig.show()
+
+        con.close()
+
+def bar_plot(drug_name=None, reaction_name=None):
+    ''' Read information from the database to build a bar plot
+    which will display the min, median, and max age listed in
+    reports for a particular 'drug' or 'reaction'.
+
+    Parameters:
+    -----------
+    drug_name: string
+        name of the drug entered by the user
+        If search was for a reaction, default is None
+
+    reaction_name: string
+        name of the reaction entered by the user
+        If search was for a drug, default is None
+
+    Returns:
+    --------
+    None
+    '''
+
+    # retrieve top ten results of reactions per drug
+    if drug_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Age
+            FROM Report_Summary
+            WHERE Drugs = ?
+            AND Age <= 100
+            """
+        result = cur.execute(query, (drug_name.upper(),)).fetchall()
+
+        # Build box plot from query using plotly and pandas
+        df = DataFrame(result,columns=['Age'])
+        fig = px.box(df, y="Age", title=f"Age Distribution for {drug_name.upper()}")
+        fig.show()
+
+    if reaction_name:
+        con = sqlite3.connect("FDA_DRUGS.db")
+        cur = con.cursor()
+        query = """
+            SELECT Age
+            FROM Report_Summary
+            WHERE Reactions = ?
+            AND Age <= 100
+            """
+        result = cur.execute(query, (reaction_name.capitalize(),)).fetchall()
+
+        # Build box plot from query using plotly and pandas
+        df = DataFrame(result,columns=['Age'])
+        fig = px.box(df, y="Age", title=f"Age Distribution for {reaction_name.upper()}")
         fig.show()
 
         con.close()
@@ -1263,10 +1324,8 @@ def inter_display(search_type, search_select, drug_name=None, reaction_name=None
     --------
     None
     '''
-    # if str.isnumeric(search_select):
-    #     search_select = int(search_select)
+
     if search_type == 'drug':
-        #if search_select >=1 and search_select <= 5:
         if search_select == 1:
             bar_chart(drug_name=drug_name)
         elif search_select == 2:
@@ -1274,8 +1333,10 @@ def inter_display(search_type, search_select, drug_name=None, reaction_name=None
         elif search_select == 3:
             gender_stats(drug_name=drug_name)
         elif search_select == 4:
-            sample_reportids(drug_name=drug_name)
+            bar_plot(drug_name=drug_name)
         elif search_select == 5:
+            sample_reportids(drug_name=drug_name)
+        elif search_select == 6:
             if refresh_token:
                 for_Reddit_interactive(drug_name, refresh_token)
             elif refresh_token is None:
@@ -1291,11 +1352,9 @@ def inter_display(search_type, search_select, drug_name=None, reaction_name=None
         elif search_select == 3:
             gender_stats(reaction_name=reaction_name)
         elif search_select == 4:
+            bar_plot(reaction_name=reaction_name)
+        elif search_select == 5:
             sample_reportids(reaction_name=reaction_name)
-        # else:
-        #     print("Search term out of range.  Please try again.")
-    # else:
-    #     print("Invalid entry.  Please try again.")
 
 
 def for_Reddit_interactive(drug_name, refresh_token):
@@ -1342,28 +1401,29 @@ def select_interactive(search_type):
         user wishes to display.
     '''
 
-    search_select = input("\nPlease select what type of presentation you would like displayed.\n\
+    search_select = input("\nPlease select what type of presentation you would like displayed.\n\n\
     Enter the numeric value corresponding to the presentation type.\n\
     Or, select 'exit' to exit or 'return' to start another search.\n\
         (1) Bar Chart\n\
         (2) Line Chart\n\
         (3) Gender Distribution\n\
-        (4) Sample List of FDA Report IDs\n\
-        (5) For Reddit Comment Threads (for drug search only and requires Reddit access)\n\
+        (4) Age Distribution\n\
+        (5) Sample List of FDA Report IDs\n\
+        (6) For Reddit Comment Threads (for drug search only and requires Reddit access)\n\n\
     Enter Selection Here: ")
 
     try:
         if str.isnumeric(search_select):
             search_select = int(search_select)
             if search_type == 'drug':
-                if search_select >= 1 and search_select <= 5:
+                if search_select >= 1 and search_select <= 6:
                     return search_select
                 else:
                     print("Search term out of range.  Please try again.")
             if search_type == 'reaction':
-                if search_select >= 1 and search_select <= 4:
+                if search_select >= 1 and search_select <= 5:
                     return search_select
-                elif search_select == 5:
+                elif search_select == 6:
                     print("That selection is for drug searches only.  Please try again.")
                 else:
                     print("Search term out of range.  Please try again.")
