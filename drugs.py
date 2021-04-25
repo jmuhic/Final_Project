@@ -56,9 +56,7 @@ def print_for_Reddit(response_Dict, drug_name):
     for i in range(len(response_Dict['Title'])):
         title_list.append(response_Dict['Title'][i])
 
-    # for i in range(len(response_Dict['URL'])):
-    #     url_list.append(response_Dict['URL'][i])
-
+    # Building table for Reddit comment thread display to user
     RedditTable = PrettyTable(border=False, header=True)
     RedditTable.field_names = ["ID","TITLE OF COMMENT THREAD"]
     RedditTable.align["ID"] = "r"
@@ -94,33 +92,30 @@ def handle_numeric(search_term, response_Dict):
     '''
     url_list = []
 
+    # Search term dipslayed to user is 1 greater than python's list value
     if str.isnumeric(search_term):
         search_term = int(search_term)
         search_value = search_term - 1
     else:
-        print("Value entered is not numeric.  Please try again.")
+        print("Invalid Entry.  Please try again.\n")
         return None
 
+    # Most likely will never happen, but keeping as future fail-safe
     if response_Dict == []:
-        print(f"Search has not yet been completed to use numeric value.")
+        print(f"Search has not yet been completed to use numeric value.\n")
         return False
 
+    # Bring in the URLs associated with each title to open
+    # Listing order to correspond with user selection
     for i in range(len(response_Dict['URL'])):
         url_list.append(response_Dict['URL'][i])
 
+    # User can only select from the list returned from Reddit
     if search_term > len(url_list) or search_term <= 0:
-        print(f"Search term out of range. Please try again.")
+        print(f"Search term out of range. Please try again.\n")
     else:
         url = response_Dict['URL'][search_value]
         webbrowser.open(url)
-
-    # if response_Dict['URL'][search_value] == False:
-    #     print(f"Search term out of range. Please try again.")
-    # else:
-    #     url = response_Dict['URL'][search_value]
-    #     webbrowser.open(url)
-
-
 
 
 def find_by_drug(drug_name):
@@ -565,11 +560,19 @@ def write_Reaction_DB(summary_list):
     # Re-create DB cursor
     cur = conn.cursor()
 
+    # Binding variables to prevent SQL injection (& account for special characters)
     for i in range(len(summary_list)):
-        cur.execute(f"INSERT OR IGNORE INTO Reactions_per_Drug VALUES\
-            ('{summary_list[i][0]}', '{summary_list[i][1]}',\
-                '{summary_list[i][2]}')")
+        cur.execute("INSERT OR IGNORE INTO Reactions_per_Drug VALUES(?,?,?)",\
+            (summary_list[i][0], summary_list[i][1], summary_list[i][2]))
+
     conn.commit()
+
+
+    # for i in range(len(summary_list)):
+    #     cur.execute(f"INSERT OR IGNORE INTO Reactions_per_Drug VALUES\
+    #         ('{summary_list[i][0]}', '{summary_list[i][1]}',\
+    #             '{summary_list[i][2]}')")
+    # conn.commit()
 
     # Close the connection to the database
     conn.close()
@@ -597,14 +600,23 @@ def write_Drug_DB(summary_list):
     # Re-create DB cursor
     cur = conn.cursor()
 
+    # for i in range(len(summary_list)):
+    #     cur.execute(f"INSERT OR IGNORE INTO Drug_per_Reaction VALUES\
+    #         ('{summary_list[i][1]}', '{summary_list[i][0]}',\
+    #             '{summary_list[i][2]}')")
+    # conn.commit()
+
+    # Binding variables to prevent SQL injection (& account for special characters)
     for i in range(len(summary_list)):
-        cur.execute(f"INSERT OR IGNORE INTO Drug_per_Reaction VALUES\
-            ('{summary_list[i][1]}', '{summary_list[i][0]}',\
-                '{summary_list[i][2]}')")
+        cur.execute("INSERT OR IGNORE INTO Drug_per_Reaction VALUES(?,?,?)",\
+            (summary_list[i][1], summary_list[i][0], summary_list[i][2]))
     conn.commit()
 
     # Close the connection to the database
     conn.close()
+
+
+
 
 def write_to_DB(user_search, search_results, search_type):
     '''
@@ -639,21 +651,22 @@ def write_to_DB(user_search, search_results, search_type):
     # Re-create DB cursor
     cur = conn.cursor()
 
+    # Binding variables to prevent SQL injection (& account for special characters)
     if search_type == 'drug':
         cur.execute(f"INSERT OR IGNORE INTO Drugs VALUES ('{user_search}')")
         for i in range(len(search_results)):
-            cur.execute(f"INSERT OR IGNORE INTO Report_Summary VALUES\
-                ('{search_results[i][0]}', '{search_results[i][1]}',\
-                    '{search_results[i][2]}', '{search_results[i][3]}',\
-                        '{search_results[i][4]}')")
+            cur.execute("INSERT OR IGNORE INTO Report_Summary VALUES(?,?,?,?,?)",\
+                (search_results[i][0], search_results[i][1],\
+                    search_results[i][2], search_results[i][3],\
+                        search_results[i][4]))
         conn.commit()
     elif search_type == 'reaction':
         cur.execute(f"INSERT OR IGNORE INTO Reactions VALUES ('{user_search}')")
         for i in range(len(search_results)):
-            cur.execute(f"INSERT OR IGNORE INTO Report_Summary VALUES\
-                ('{search_results[i][0]}', '{search_results[i][1]}',\
-                    '{search_results[i][2]}', '{search_results[i][3]}',\
-                        '{search_results[i][4]}')")
+            cur.execute("INSERT OR IGNORE INTO Report_Summary VALUES(?,?,?,?,?)",\
+                (search_results[i][0], search_results[i][1],\
+                    search_results[i][2], search_results[i][3],\
+                        search_results[i][4]))
         conn.commit()
 
     # Close the connection to the database
@@ -1162,7 +1175,9 @@ def make_authorization_url():
 			  "state": state,
 			  "redirect_uri": REDIRECT_URI,
 			  "duration": "permanent",
-			  "scope": "identity,edit,flair,history,modconfig,modflair,modlog,modposts,modwiki,mysubreddits,privatemessages,read,report,save,submit,subscribe,vote,wikiedit,wikiread"}
+			  "scope": "identity,edit,flair,history,modconfig,modflair,modlog,modposts,\
+                  modwiki,mysubreddits,privatemessages,read,report,save,submit,subscribe,\
+                  vote,wikiedit,wikiread"}
 	import urllib
 	url = "https://ssl.reddit.com/api/v1/authorize?" + urllib.parse.urlencode(params)
 	return url
@@ -1177,7 +1192,8 @@ def save_created_state(state):
 def is_valid_state(state):
 	return True
 
-# Used these functions to suppress warning messages from being displayed to the user
+# Used these functions to suppress warning messages
+# from being displayed to the user
 def secho(text, file=None, nl=None, err=None, color=None, **styles):
    pass
 
@@ -1213,9 +1229,11 @@ def init_tokens_for_Reddit():
     #print(oauth_code)
 
     client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
-    post_data = {"grant_type": "authorization_code", "code": oauth_code, "redirect_uri": REDIRECT_URI}
+    post_data = {"grant_type": "authorization_code", "code": oauth_code,\
+        "redirect_uri": REDIRECT_URI}
     headers = {"User-Agent": "ChangeMeClient/0.1 by bluewolfhi1817"}
-    response = requests.post("https://ssl.reddit.com/api/v1/access_token", auth=client_auth, data=post_data, headers=headers)
+    response = requests.post("https://ssl.reddit.com/api/v1/access_token",\
+        auth=client_auth, data=post_data, headers=headers)
     output = response.json()
 
     access_token = output['access_token']
@@ -1243,7 +1261,8 @@ def token_refresh(refresh_token):
     client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
     post_data = {"grant_type": "refresh_token", "refresh_token": refresh_token}
     headers = {"User-Agent": f"ChangeMeClient/0.1 by {REDDIT_USERNAME}"}
-    response = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data, headers=headers)
+    response = requests.post("https://www.reddit.com/api/v1/access_token",\
+        auth=client_auth, data=post_data, headers=headers)
     output = response.json()
     access_token = output['access_token']
     # print(output)
@@ -1272,7 +1291,8 @@ def for_Reddit_retrieve(access_token, drug_name):
     url_list = []
     title_list = []
 
-    headers = {"Authorization": f"bearer {access_token}", "User-Agent": f"ChangeMeClient/0.1 by {REDDIT_USERNAME}"}
+    headers = {"Authorization": f"bearer {access_token}",\
+        "User-Agent": f"ChangeMeClient/0.1 by {REDDIT_USERNAME}"}
 
     url_search = "https://oauth.reddit.com/search.json?limit=100&t=month&type=link&q="
     url_end = "+AND+reaction"
@@ -1305,7 +1325,8 @@ def for_Reddit_retrieve(access_token, drug_name):
 
     return response_Dict
 
-def inter_display(search_type, search_select, drug_name=None, reaction_name=None, refresh_token=None):
+def inter_display(search_type, search_select, drug_name=None,\
+    reaction_name=None, refresh_token=None):
     '''Will present to the user the presentation selected for display.
 
     Parameters:
@@ -1389,12 +1410,18 @@ def for_Reddit_interactive(drug_name, refresh_token):
     access_token = token_refresh(refresh_token)
     response_Dict = for_Reddit_retrieve(access_token, drug_name)
     print_for_Reddit(response_Dict, drug_name)
+
+    # While true, allow the user to keep making selections for Reddit comment display
     while True:
-        search_term = input("Please enter the numeric value for the comment thread you would like to read or 'return': ")
+        search_term = input("Please enter the numeric value for the comment thread you would like to read, 'exit' or 'return': ")
         if search_term.lower() == 'return':
             break
+        elif search_term.lower() == 'exit':
+            print("\n")
+            exit()
         else:
             handle_numeric(search_term, response_Dict)
+
 
 def select_interactive(search_type):
     '''Displays to the user presentation options from which to select.
@@ -1482,8 +1509,8 @@ if __name__ == "__main__":
         'Users have the ability to request the entire report from the FDA ' \
         'through the Freedom of Information Act (FOIA) on an individual basis. ' \
         'Users will also have the option to search for Reddit comments.  Please ' \
-        'indicate if you wish to retrieve information for Reddit comment threads, '
-        'if you have already have a Reddit account.')
+        'indicate if you wish to retrieve information for Reddit comment threads; '
+        'this requires that you already have a Reddit account.')
 
     try:
         allow_for_Reddit = input("\nWould you like to conduct a Reddit search in this program? ('y' or 'n'): ")
@@ -1524,7 +1551,8 @@ if __name__ == "__main__":
                     while True:
                         search_select = select_interactive(search_type)
                         if search_select:
-                            inter_display(search_type, search_select, drug_name=drug_name, refresh_token=refresh_token)
+                            inter_display(search_type, search_select,\
+                                drug_name=drug_name, refresh_token=refresh_token)
                         elif search_select is None:
                             break
 
@@ -1549,7 +1577,8 @@ if __name__ == "__main__":
                     while True:
                         search_select = select_interactive(search_type)
                         if search_select:
-                            inter_display(search_type, search_select, reaction_name=reaction_name)
+                            inter_display(search_type, search_select,\
+                                reaction_name=reaction_name)
                         elif search_select is None:
                             break
             elif search_type.lower() == 'exit':
