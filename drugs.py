@@ -1282,7 +1282,18 @@ def for_Reddit_retrieve(access_token, drug_name):
     output = response.json()
 
     # Loop through to find the first 10 for display (keep in Dict for now)
-    for i in range(10):
+    # Check to see if there are records
+    if output is None:
+        print(f"Sorry.  No comment threads found for {drug_name}.")
+        return None
+
+    # Then check if if there are at least 10 records
+    # Will keep results list to 10 returned to the user for display
+    search_length = len(output['data']['children'])
+    if search_length > 10:
+        search_length = 10
+
+    for i in range(search_length):
         title_list.append(output['data']['children'][i]['data']['title'])
         url_list.append(output['data']['children'][i]['data']['url'])
 
