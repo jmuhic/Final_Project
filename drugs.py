@@ -249,7 +249,7 @@ def find_by_reaction(user_reaction):
 
     if results_list:
         write_to_DB(user_reaction, results_list, 'reaction') # store in DB
-        total_drugs_by_reaction(user_reaction)
+        total_drugs_by_reaction(user_reaction) # store in DB Count Summary
 
     return results_list
 
@@ -330,7 +330,7 @@ def results_loop_reactions(raw_data, user_reaction):
 
 def total_reaction_by_drug(drug_name):
     '''
-    Returns a summarized list of rections reported to the FDA
+    Returns a summarized list of reactions reported to the FDA
     for the drug entered by the user.
     Will return data from cache, if found.  Otherwise,
     will use FDA API to retrieve the information.
@@ -363,10 +363,11 @@ def total_reaction_by_drug(drug_name):
 
         # Getting data from FDA API Call
         # Call returns the top 100 reactions reported to the FDA
-        output = requests.get(summary_url_base + api_key + descrip + drug_name)
-        json_dict = json.loads(output.text)
-
         try:
+            output = requests.get(summary_url_base + api_key + descrip + drug_name)
+            json_dict = json.loads(output.text)
+
+        #try:
             tot_reactions = json_dict['results']
             add_to_summary_cache(drug_name, json_dict)
 
@@ -421,14 +422,16 @@ def total_drugs_by_reaction(reaction):
     elif json_dict is None:
         summary_url_base = "https://api.fda.gov/drug/event.json?api_key="
         api_key = secret_drugs.FDA_API_KEY
-        descrip = '&count=patient.drug.medicinalproduct.exact&search=patient.reaction.reactionmeddrapt.exact:'
+        #descrip = '&count=patient.drug.medicinalproduct.exact&search=patient.reaction.reactionmeddrapt.exact:'
+        descrip = '&count=patient.drug.medicinalproduct.exact&search=patient.reaction.reactionmeddrapt:'
 
         # Getting data from FDA API Call
         # Call returns the top 100 instances reported to the FDA
-        output = requests.get(summary_url_base + api_key + descrip + reaction)
-        json_dict = json.loads(output.text)
-
         try:
+            output = requests.get(summary_url_base + api_key + descrip + reaction)
+            json_dict = json.loads(output.text)
+
+        #try:
             tot_drugs = json_dict['results']
             add_to_summary_cache(reaction, json_dict)
 
@@ -445,7 +448,8 @@ def total_drugs_by_reaction(reaction):
             #         report_id = reactions[i]['safetyreportid']
             #         results_list.append((report_id, drug_name, drug_reaction))
         except:
-            print('Drug not found in FDA database. Please try another search.')
+            #print('Reaction not found in FDA database. Please try another search.')
+            print(f"\n\n*** {reaction.upper()} has no count summary. Selections 1 and 2 below will return NULL results. ***")
             return None
 
     if summary_list:
@@ -651,9 +655,11 @@ def write_to_DB(user_search, search_results, search_type):
     # Re-create DB cursor
     cur = conn.cursor()
 
+    # Writing data to the Drug or Reaction table and Report Summary table
     # Binding variables to prevent SQL injection (& account for special characters)
     if search_type == 'drug':
-        cur.execute(f"INSERT OR IGNORE INTO Drugs VALUES ('{user_search}')")
+        cur.execute("INSERT OR IGNORE INTO Drugs VALUES(?)", (user_search,))
+        # cur.execute(f"INSERT OR IGNORE INTO Drugs VALUES ('{user_search}')")
         for i in range(len(search_results)):
             cur.execute("INSERT OR IGNORE INTO Report_Summary VALUES(?,?,?,?,?)",\
                 (search_results[i][0], search_results[i][1],\
@@ -661,7 +667,8 @@ def write_to_DB(user_search, search_results, search_type):
                         search_results[i][4]))
         conn.commit()
     elif search_type == 'reaction':
-        cur.execute(f"INSERT OR IGNORE INTO Reactions VALUES ('{user_search}')")
+        cur.execute("INSERT OR IGNORE INTO Reactions VALUES(?)", (user_search,))
+        # cur.execute(f"INSERT OR IGNORE INTO Reactions VALUES ('{user_search}')")
         for i in range(len(search_results)):
             cur.execute("INSERT OR IGNORE INTO Report_Summary VALUES(?,?,?,?,?)",\
                 (search_results[i][0], search_results[i][1],\
