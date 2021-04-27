@@ -159,9 +159,10 @@ def find_by_drug(drug_name):
         limit = '&limit=1000'
 
         # More generalized search appears to be most effective for brand/generic/substance_name
-        output = requests.get(fda_url_base + api_key + '&search=' + drug_name + limit)
-        reaction_results = json.loads(output.text)
         try:
+            output = requests.get(fda_url_base + api_key + '&search=' + drug_name + limit)
+            reaction_results = json.loads(output.text)
+        #try:
             reactions = reaction_results['results']
             add_to_cache(drug_name, reaction_results)
 
@@ -1515,12 +1516,12 @@ if __name__ == "__main__":
         'list of ReportIDs from FAERS (FDA Adverse Event Reporting System). ' \
         'Users have the ability to request the entire report from the FDA ' \
         'through the Freedom of Information Act (FOIA) on an individual basis. ' \
-        'Users will also have the option to search for Reddit comments.  Please ' \
-        'indicate if you wish to retrieve information for Reddit comment threads; '
-        'this requires that you already have a Reddit account.')
+        'Users with an existing Reddit account will also have the option to ' \
+        'search for Reddit comments for Drug searches only.  Please indicate ' \
+        'if you wish to retrieve information for Reddit comment threads.')
 
     try:
-        allow_for_Reddit = input("\nWould you like to conduct a Reddit search in this program? ('y' or 'n'): ")
+        allow_for_Reddit = input("\nWould you like to conduct a Reddit search in this program? ('y' or 'n' or 'exit'): ")
         if allow_for_Reddit.lower() == 'y':
             tokens = init_tokens_for_Reddit()
             access_token = tokens[0]
@@ -1528,6 +1529,9 @@ if __name__ == "__main__":
         elif allow_for_Reddit.lower() == 'n':
             access_token = None
             refresh_token = None
+        elif allow_for_Reddit.lower() == 'exit':
+            print('\n')
+            exit()
     except KeyError:
         print("Invalid entry.  Please try again.")
 
