@@ -18,7 +18,6 @@ import click
 from prettytable import PrettyTable
 import textwrap
 from textwrap import fill
-import plotly.express as px
 from pandas import DataFrame
 
 CLIENT_ID = secret_drugs.REDDIT_CLIENT_ID
