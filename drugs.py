@@ -108,9 +108,6 @@ def handle_numeric(search_term, response_Dict):
 
     # Bring in the URLs associated with each title to open
     # Listing order to correspond with user selection
-    # for i in range(len(response_Dict['URL'])):
-    #     url_list.append(response_Dict['URL'][i])
-
     for i in range(len(response_Dict['URL'])):
         if response_Dict['URL'][i][0] != 'h':
             response_Dict['URL'][i] = 'https://www.reddit.com' +\
@@ -150,18 +147,12 @@ def find_by_drug(drug_name):
     drug_dict = {}
     drug_dict = check_cache(drug_name)
 
+    # Retrieve information from cache, if found
     if drug_dict:
         reactions = drug_dict['results']
         results_list = results_loop_drug(reactions, drug_name)
 
-        # results_list = []
-        # reactions = drug_dict['results']
-        # for i in range(len(reactions)):
-        #     for x in range(len(reactions[i]['patient']['reaction'])):
-        #         drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
-        #         report_id = reactions[i]['safetyreportid']
-        #         results_list.append((report_id, drug_name, drug_reaction))
-
+    # Retrieve information from FDA if not in cache
     elif drug_dict is None:
         fda_url_base = "https://api.fda.gov/drug/event.json?api_key="
         api_key = secret_drugs.FDA_API_KEY
@@ -171,26 +162,20 @@ def find_by_drug(drug_name):
         try:
             output = requests.get(fda_url_base + api_key + '&search=' + drug_name + limit)
             reaction_results = json.loads(output.text)
-        #try:
+
             reactions = reaction_results['results']
             add_to_cache(drug_name, reaction_results)
 
         # Building a dictionary to list reporting reactions and number of occurrences
             results_list = results_loop_drug(reactions, drug_name)
-            # results_list = []
-            # for i in range(len(reactions)):
-            #     for x in range(len(reactions[i]['patient']['reaction'])):
-            #         drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
-            #         report_id = reactions[i]['safetyreportid']
-            #         results_list.append((report_id, drug_name, drug_reaction))
 
-        except:
+        except: # if output is a failure, then drug not in database
             print('Drug not found in FDA database. Please try another search.')
             return None
 
     if results_list:
         write_to_DB(drug_name, results_list, 'drug') # store in DB
-        total_reaction_by_drug(drug_name)
+        total_reaction_by_drug(drug_name) # get summarized list
 
     return results_list
 
@@ -259,7 +244,7 @@ def find_by_reaction(user_reaction):
 
     if results_list:
         write_to_DB(user_reaction, results_list, 'reaction') # store in DB
-        total_drugs_by_reaction(user_reaction) # store in DB Count Summary
+        total_drugs_by_reaction(user_reaction) # get summarized list
 
     return results_list
 
@@ -283,12 +268,12 @@ def results_loop_drug(raw_data, drug_name):
     '''
     results_list = []
     for i in range(len(raw_data)):
-        try:
+        try:  # if there is no age listed, set age = None
             age = raw_data[i]['patient']['patientonsetage']
         except:
-            age = 0
+            age = None
 
-        try:
+        try:  # if no age listed, set gender = 0 (unknown)
             gender = raw_data[i]['patient']['patientsex']
         except:
             gender = 0
@@ -320,12 +305,12 @@ def results_loop_reactions(raw_data, user_reaction):
     '''
     results_list = []
     for i in range(len(raw_data)):
-        try:
+        try: # # if there is no age listed, set age = None
             age = raw_data[i]['patient']['patientonsetage']
         except:
-            age = 0
+            age = None
 
-        try:
+        try: # if no age listed, set gender = 0 (unknown)
             gender = raw_data[i]['patient']['patientsex']
         except:
             gender = 0
@@ -377,7 +362,6 @@ def total_reaction_by_drug(drug_name):
             output = requests.get(summary_url_base + api_key + descrip + drug_name)
             json_dict = json.loads(output.text)
 
-        #try:
             tot_reactions = json_dict['results']
             add_to_summary_cache(drug_name, json_dict)
 
@@ -387,17 +371,12 @@ def total_reaction_by_drug(drug_name):
                 reaction = tot_reactions[i]['term']
                 count = tot_reactions[i]['count']
                 summary_list.append((drug_name, reaction, count))
-            # results_list = []
-            # for i in range(len(reactions)):
-            #     for x in range(len(reactions[i]['patient']['reaction'])):
-            #         drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
-            #         report_id = reactions[i]['safetyreportid']
-            #         results_list.append((report_id, drug_name, drug_reaction))
-        except:
+
+        except:  # output will return failure if drug not found
             print('Drug not found in FDA database. Please try another search.')
             return None
 
-    if summary_list:
+    if summary_list: # if drug found, save to DB
         write_Reaction_DB(summary_list)
 
 
@@ -421,6 +400,7 @@ def total_drugs_by_reaction(reaction):
     json_dict = {}
     json_dict = check_summary_cache(reaction)
 
+    # if search already cached, pull from cache
     if json_dict:
         tot_drugs = json_dict['results']
         summary_list = []
@@ -429,10 +409,13 @@ def total_drugs_by_reaction(reaction):
             count = tot_drugs[i]['count']
             summary_list.append((drug_name, reaction, count))
 
+    # if first time searching, pull data from FDA
     elif json_dict is None:
         summary_url_base = "https://api.fda.gov/drug/event.json?api_key="
         api_key = secret_drugs.FDA_API_KEY
         #descrip = '&count=patient.drug.medicinalproduct.exact&search=patient.reaction.reactionmeddrapt.exact:'
+        # Exact was causing issues when searching for 'bruising'
+        # as opposed to 'injection site bruising', so removed
         descrip = '&count=patient.drug.medicinalproduct.exact&search=patient.reaction.reactionmeddrapt:'
 
         # Getting data from FDA API Call
@@ -441,7 +424,6 @@ def total_drugs_by_reaction(reaction):
             output = requests.get(summary_url_base + api_key + descrip + reaction)
             json_dict = json.loads(output.text)
 
-        #try:
             tot_drugs = json_dict['results']
             add_to_summary_cache(reaction, json_dict)
 
@@ -451,14 +433,10 @@ def total_drugs_by_reaction(reaction):
                 drug_name = tot_drugs[i]['term']
                 count = tot_drugs[i]['count']
                 summary_list.append((drug_name, reaction, count))
-            # results_list = []
-            # for i in range(len(reactions)):
-            #     for x in range(len(reactions[i]['patient']['reaction'])):
-            #         drug_reaction = reactions[i]['patient']['reaction'][x]['reactionmeddrapt']
-            #         report_id = reactions[i]['safetyreportid']
-            #         results_list.append((report_id, drug_name, drug_reaction))
+
         except:
-            #print('Reaction not found in FDA database. Please try another search.')
+            # Will likely not reach this, but is a fail-safe.
+            # Was getting here when searching for 'bruising'
             print(f"\n\n*** {reaction.upper()} has no count summary. Selections 1 and 2 below will return NULL results. ***")
             return None
 
@@ -566,7 +544,6 @@ def write_Reaction_DB(summary_list):
     --------
     None
     '''
-    #create_database()
 
     # Re-connect to database
     conn = sqlite3.connect('FDA_DRUGS.db')
@@ -579,17 +556,10 @@ def write_Reaction_DB(summary_list):
         cur.execute("INSERT OR IGNORE INTO Reactions_per_Drug VALUES(?,?,?)",\
             (summary_list[i][0], summary_list[i][1], summary_list[i][2]))
 
-    conn.commit()
+    conn.commit() # commit updates to DB
 
+    conn.close() # close connection to DB
 
-    # for i in range(len(summary_list)):
-    #     cur.execute(f"INSERT OR IGNORE INTO Reactions_per_Drug VALUES\
-    #         ('{summary_list[i][0]}', '{summary_list[i][1]}',\
-    #             '{summary_list[i][2]}')")
-    # conn.commit()
-
-    # Close the connection to the database
-    conn.close()
 
 def write_Drug_DB(summary_list):
     '''
@@ -606,7 +576,6 @@ def write_Drug_DB(summary_list):
     --------
     None
     '''
-    #create_database()
 
     # Re-connect to database
     conn = sqlite3.connect('FDA_DRUGS.db')
@@ -614,20 +583,14 @@ def write_Drug_DB(summary_list):
     # Re-create DB cursor
     cur = conn.cursor()
 
-    # for i in range(len(summary_list)):
-    #     cur.execute(f"INSERT OR IGNORE INTO Drug_per_Reaction VALUES\
-    #         ('{summary_list[i][1]}', '{summary_list[i][0]}',\
-    #             '{summary_list[i][2]}')")
-    # conn.commit()
-
     # Binding variables to prevent SQL injection (& account for special characters)
     for i in range(len(summary_list)):
         cur.execute("INSERT OR IGNORE INTO Drug_per_Reaction VALUES(?,?,?)",\
             (summary_list[i][1], summary_list[i][0], summary_list[i][2]))
-    conn.commit()
 
-    # Close the connection to the database
-    conn.close()
+    conn.commit() # commit updates to DB
+
+    conn.close() # close connection to DB
 
 
 
@@ -657,7 +620,6 @@ def write_to_DB(user_search, search_results, search_type):
     --------
     None
     '''
-    #create_database()
 
     # Re-connect to database
     conn = sqlite3.connect('FDA_DRUGS.db')
@@ -675,7 +637,7 @@ def write_to_DB(user_search, search_results, search_type):
                 (search_results[i][0], search_results[i][1],\
                     search_results[i][2], search_results[i][3],\
                         search_results[i][4]))
-        conn.commit()
+        conn.commit() # commit updates to DB
     elif search_type == 'reaction':
         cur.execute("INSERT OR IGNORE INTO Reactions VALUES(?)", (user_search,))
         # cur.execute(f"INSERT OR IGNORE INTO Reactions VALUES ('{user_search}')")
@@ -684,10 +646,9 @@ def write_to_DB(user_search, search_results, search_type):
                 (search_results[i][0], search_results[i][1],\
                     search_results[i][2], search_results[i][3],\
                         search_results[i][4]))
-        conn.commit()
+        conn.commit() # commit updates to DB
 
-    # Close the connection to the database
-    conn.close()
+    conn.close() # close connection to DB
 
 
 def bar_chart(drug_name=None, reaction_name=None):
@@ -714,7 +675,7 @@ def bar_chart(drug_name=None, reaction_name=None):
     yvals = []
 
     # retrieve top ten results of reactions per drug
-    if drug_name:
+    if drug_name: # if 'drug' search
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
         query = """
@@ -736,7 +697,8 @@ def bar_chart(drug_name=None, reaction_name=None):
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
-    if reaction_name:
+    # retrieve top ten drugs related to reaction
+    if reaction_name: # if 'reaction' search
         reaction_name = reaction_name.upper()
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
@@ -759,7 +721,7 @@ def bar_chart(drug_name=None, reaction_name=None):
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
-        con.close()
+    con.close() # close connection to DB
 
 
 def line_chart(drug_name=None, reaction_name=None):
@@ -804,7 +766,6 @@ def line_chart(drug_name=None, reaction_name=None):
             yvals.append(result[i][1])
 
         bar_data =go.Scatter(x=xvals, y=yvals)
-        #basic_layout = go.Layout(title="Top Reactions per Drug")
         basic_layout = go.Layout(title=f"Top 10 Reactions for {drug_name}",
             title_font_size=30)
         fig = go.Figure(data=bar_data, layout=basic_layout)
@@ -835,7 +796,7 @@ def line_chart(drug_name=None, reaction_name=None):
         fig = go.Figure(data=bar_data, layout=basic_layout)
         fig.show()
 
-        con.close()
+    con.close() # close connection to DB
 
 def bar_plot(drug_name=None, reaction_name=None):
     ''' Read information from the database to build a bar plot
@@ -890,7 +851,7 @@ def bar_plot(drug_name=None, reaction_name=None):
         fig = px.box(df, y="Age", title=f"Age Distribution for {reaction_name.upper()}")
         fig.show()
 
-        con.close()
+    con.close() # close connection to DB
 
 def sample_reportids(drug_name=None, reaction_name=None):
     ''' Will present a list of report ids as samples which the user can choose
@@ -945,6 +906,8 @@ def sample_reportids(drug_name=None, reaction_name=None):
         for i in range(len(result)):
             print(f"{i + 1}. {result[i][0]}")
 
+    con.close() # close connection to DB
+
     return result
 
 
@@ -970,7 +933,7 @@ def gender_stats(drug_name=None, reaction_name=None):
     gender_count = []
     gender_result = []
 
-    if drug_name:
+    if drug_name: # if 'drug' search
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
         query = """
@@ -997,8 +960,7 @@ def gender_stats(drug_name=None, reaction_name=None):
             title=f"Gender Distribution for Reports related to {drug_name}")
         fig.show()
 
-
-    if reaction_name:
+    if reaction_name: # if 'reaction' search
         reaction_name = reaction_name.capitalize()
         con = sqlite3.connect("FDA_DRUGS.db")
         cur = con.cursor()
@@ -1026,6 +988,7 @@ def gender_stats(drug_name=None, reaction_name=None):
             title=f"Gender Distribution for Reports related to {reaction_name.upper()}")
         fig.show()
 
+    con.close() # close connection to DB
 
     return result
 
@@ -1158,7 +1121,7 @@ def create_table(fda_results, search_type, user_search):
     except:
         pass
 
-    conn.close()
+    conn.close() # close connection to DB
 
 
 # See References at end of program for Reddit
@@ -1192,10 +1155,10 @@ def make_authorization_url():
 			  "state": state,
 			  "redirect_uri": REDIRECT_URI,
 			  "duration": "permanent",
-			  "scope": "identity,edit,flair,history,modconfig,modflair,modlog,modposts,\
-                  modwiki,mysubreddits,privatemessages,read,report,save,submit,subscribe,\
-                  vote,wikiedit,wikiread"}
-	import urllib
+			  "scope": "identity,edit,flair,history,modconfig,modflair,modlog,\
+                modposts,modwiki,mysubreddits,privatemessages,read,report,\
+                save,submit,subscribe,vote,wikiedit,wikiread"}
+	#import urllib
 	url = "https://ssl.reddit.com/api/v1/authorize?" + urllib.parse.urlencode(params)
 	return url
 
@@ -1314,8 +1277,9 @@ def for_Reddit_retrieve(access_token, drug_name):
     url_search = "https://oauth.reddit.com/search.json?limit=100&t=month&type=link&q="
     url_end = "+AND+reaction"
 
-    try:
-        response = requests.get(url_search + drug_name + url_end, headers=headers)
+    try: # if there are comments found for the 'drug' for Reddit search
+        response = requests.get(url_search + drug_name + url_end,\
+            headers=headers)
         output = response.json()
 
         # Loop through to find the first 10 for display (keep in Dict for now)
@@ -1341,7 +1305,7 @@ def for_Reddit_retrieve(access_token, drug_name):
             "Title": title_list,
             "URL": url_list
         }
-    except KeyError:
+    except KeyError: # if no comments found
         print(f"Sorry.  No comment threads found for {drug_name}.")
         return None
 
@@ -1432,7 +1396,7 @@ def for_Reddit_interactive(drug_name, refresh_token):
     access_token = token_refresh(refresh_token)
     response_Dict = for_Reddit_retrieve(access_token, drug_name)
 
-    if response_Dict:
+    if response_Dict: # if comments were found for Reddit search
         print_for_Reddit(response_Dict, drug_name)
 
         # While true, allow the user to keep making selections for Reddit comment display
@@ -1525,9 +1489,6 @@ if os.path.isfile(summary_path):
 if __name__ == "__main__":
     # First thing will be to create the DB to store results
     create_database()
-    # tokens = init_tokens_for_Reddit()
-    # access_token = tokens[0]
-    # refresh_token = tokens[1]
     print('\n')
 
     print('DISCLAIMER: This program will allow the user to retrieve a ' \
@@ -1678,9 +1639,11 @@ if __name__ == "__main__":
     # print_for_Reddit(response_Dict, drug_name)
     # search_term = input("Please enter the numeric value for the comment thread you would like to read: ")
     # handle_numeric(search_term, response_Dict)
-    print("\n")
-    exit()
 
+    # Testing for OATH2 for Reddit:
+    # tokens = init_tokens_for_Reddit()
+    # access_token = tokens[0]
+    # refresh_token = tokens[1]
 
 # References for Reddit OATH2:
 # https://stackoverflow.com/questions/14888799/disable-console-messages-in-flask-server
