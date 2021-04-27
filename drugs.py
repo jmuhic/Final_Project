@@ -51,25 +51,26 @@ def print_for_Reddit(response_Dict, drug_name):
     '''
     title_list = []
     count = 0
+    if response_Dict:
+        # Pulling the list of titles from the response_Dict
+        for i in range(len(response_Dict['Title'])):
+            title_list.append(response_Dict['Title'][i])
 
-    # Pulling the list of titles from the response_Dict
-    for i in range(len(response_Dict['Title'])):
-        title_list.append(response_Dict['Title'][i])
+        # Building table for Reddit comment thread display to user
+        RedditTable = PrettyTable(border=False, header=True)
+        RedditTable.field_names = ["ID","TITLE OF COMMENT THREAD"]
+        RedditTable.align["ID"] = "r"
+        RedditTable.align["TITLE OF COMMENT THREAD"] = "l"
 
-    # Building table for Reddit comment thread display to user
-    RedditTable = PrettyTable(border=False, header=True)
-    RedditTable.field_names = ["ID","TITLE OF COMMENT THREAD"]
-    RedditTable.align["ID"] = "r"
-    RedditTable.align["TITLE OF COMMENT THREAD"] = "l"
+        # Print output in formatted setting - for Reddit
+        print(f"\n--- DISCUSSION THREADS FROM REDDIT FOR {drug_name.upper()} ---\n")
+        for title in title_list:
+            count += 1
+            RedditTable.add_row([count, fill(title,width=500)])
 
-    # Print output in formatted setting - for Reddit
-    print(f"\n--- DISCUSSION THREADS FROM REDDIT FOR {drug_name.upper()} ---\n")
-    for title in title_list:
-        count += 1
-        RedditTable.add_row([count, fill(title,width=500)])
+        print(RedditTable)
+        print("\n")
 
-    print(RedditTable)
-    print("\n")
 
 def handle_numeric(search_term, response_Dict):
     '''
@@ -107,8 +108,16 @@ def handle_numeric(search_term, response_Dict):
 
     # Bring in the URLs associated with each title to open
     # Listing order to correspond with user selection
+    # for i in range(len(response_Dict['URL'])):
+    #     url_list.append(response_Dict['URL'][i])
+
     for i in range(len(response_Dict['URL'])):
-        url_list.append(response_Dict['URL'][i])
+        if response_Dict['URL'][i][0] != 'h':
+            response_Dict['URL'][i] = 'https://www.reddit.com' +\
+                response_Dict['URL'][i]
+            url_list.append(response_Dict['URL'][i])
+        else:
+            url_list.append(response_Dict['URL'][i])
 
     # User can only select from the list returned from Reddit
     if search_term > len(url_list) or search_term <= 0:
@@ -1305,31 +1314,36 @@ def for_Reddit_retrieve(access_token, drug_name):
     url_search = "https://oauth.reddit.com/search.json?limit=100&t=month&type=link&q="
     url_end = "+AND+reaction"
 
-    response = requests.get(url_search + drug_name + url_end, headers=headers)
+    try:
+        response = requests.get(url_search + drug_name + url_end, headers=headers)
+        output = response.json()
 
-    output = response.json()
+        # Loop through to find the first 10 for display (keep in Dict for now)
+        # Check to see if there are records
+        if len(output) == 0 or len(output['data']['children']) == 0:
+            print(f"Sorry.  No comment threads found for {drug_name}.")
+            search_select = select_interactive('drug')
+            inter_display('drug', search_select, drug_name=drug_name)
+            return None
 
-    # Loop through to find the first 10 for display (keep in Dict for now)
-    # Check to see if there are records
-    if output is None:
+        # Then check if if there are at least 10 records
+        # Will keep results list to 10 returned to the user for display
+        search_length = len(output['data']['children'])
+        if search_length > 10:
+            search_length = 10
+
+        for i in range(search_length):
+            title_list.append(output['data']['children'][i]['data']['title'])
+            url_list.append(output['data']['children'][i]['data']['url'])
+
+
+        response_Dict = {
+            "Title": title_list,
+            "URL": url_list
+        }
+    except KeyError:
         print(f"Sorry.  No comment threads found for {drug_name}.")
         return None
-
-    # Then check if if there are at least 10 records
-    # Will keep results list to 10 returned to the user for display
-    search_length = len(output['data']['children'])
-    if search_length > 10:
-        search_length = 10
-
-    for i in range(search_length):
-        title_list.append(output['data']['children'][i]['data']['title'])
-        url_list.append(output['data']['children'][i]['data']['url'])
-
-
-    response_Dict = {
-        "Title": title_list,
-        "URL": url_list
-    }
 
     return response_Dict
 
@@ -1417,18 +1431,22 @@ def for_Reddit_interactive(drug_name, refresh_token):
     '''
     access_token = token_refresh(refresh_token)
     response_Dict = for_Reddit_retrieve(access_token, drug_name)
-    print_for_Reddit(response_Dict, drug_name)
 
-    # While true, allow the user to keep making selections for Reddit comment display
-    while True:
-        search_term = input("Please enter the numeric value for the comment thread you would like to read, 'exit' or 'return': ")
-        if search_term.lower() == 'return':
-            break
-        elif search_term.lower() == 'exit':
-            print("\n")
-            exit()
-        else:
-            handle_numeric(search_term, response_Dict)
+    if response_Dict:
+        print_for_Reddit(response_Dict, drug_name)
+
+        # While true, allow the user to keep making selections for Reddit comment display
+        while True:
+            search_term = input("Please enter the numeric value for the comment thread you would like to read, 'exit' or 'return': ")
+            if search_term.lower() == 'return':
+                break
+            elif search_term.lower() == 'exit':
+                print("\n")
+                exit()
+            else:
+                handle_numeric(search_term, response_Dict)
+    else:
+        return None
 
 
 def select_interactive(search_type):
